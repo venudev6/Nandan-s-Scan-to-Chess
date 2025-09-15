@@ -1,0 +1,354 @@
+/*
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+/* STYLES FOR COMMON, REUSABLE UI COMPONENTS */
+
+/* Banner: For displaying informational or warning messages. */
+.warning-banner {
+  background-color: #fffbeb;
+  color: #92400e;
+  padding: 0.75rem 1rem;
+  border: 1px solid #fde68a;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.warning-banner strong {
+  color: #78350f;
+}
+.info-banner {
+  background-color: #fefce8; /* yellow-50 */
+  color: #a16207; /* yellow-700 */
+  padding: 0.75rem 1rem;
+  border: 1px solid #fef08a; /* yellow-200 */
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.info-banner button {
+  background: none;
+  border: none;
+  color: #a16207;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.5rem;
+}
+
+/* Button: Base styles and variations for all buttons. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* Space between icon and text */
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease; /* Smooth transitions for hover effects */
+  font-size: 1rem;
+  white-space: nowrap; /* Prevents text wrapping */
+  text-decoration: none;
+}
+.btn:disabled, .btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px); /* Subtle lift effect on hover */
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.btn-secondary {
+  background-color: #e5e7eb;
+  color: #374151;
+  border: 1px solid var(--border-color);
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: #d1d5db;
+}
+.btn-analyze {
+    background-color: #7FA650;
+    color: #FFFFFF;
+}
+.btn-analyze:hover:not(:disabled) {
+    background-color: #6C8C44;
+}
+.btn-dark {
+    background-color: #262625;
+    color: white;
+}
+.btn-dark:hover:not(:disabled) {
+    background-color: #1A1A1A;
+}
+.btn-dark.disabled {
+    background-color: #6b7280;
+}
+/* Icon-only buttons */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e5e7eb;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    width: 44px;
+    height: 44px;
+    color: #374151;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0; /* Prevents the button from shrinking in flex containers */
+}
+.btn-icon:hover {
+    background: #d1d5db;
+}
+.btn-icon svg {
+    width: 24px;
+    height: 24px;
+}
+.btn-icon.btn-confirm {
+    background-color: var(--success-color);
+    color: white;
+    border-color: var(--success-color);
+}
+.btn-icon.btn-confirm:hover:not(:disabled) {
+    background-color: #16a34a;
+    border-color: #16a34a;
+}
+.btn-icon.btn-confirm:disabled {
+    background-color: #e5e7eb;
+    border-color: var(--border-color);
+    color: #9ca3af;
+    opacity: 1;
+}
+
+/* Card: The main content container for each view. */
+.card {
+  background-color: var(--card-background);
+  border: none;
+  border-radius: 1.5rem 1.5rem 0 0;
+  padding: 2rem;
+  box-shadow: none;
+  animation: slide-up 0.5s ease-out forwards; /* Entrance animation */
+  width: 100%;
+}
+/* When card is a direct child of app-container, make it fill remaining space */
+.app-container > .card {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Crucial for allowing flex children to shrink */
+}
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Control Section: A generic container for controls in side panels. */
+.control-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: #ffffff;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.control-section h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin: 0;
+}
+.control-section img {
+  width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+  border: 1px solid var(--border-color);
+}
+
+/* FEN Input: Styles for the FEN string input field and its wrapper. */
+.fen-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.fen-input-wrapper .btn-icon {
+    width: 40px;
+    height: 40px;
+}
+.fen-input-wrapper .btn-icon svg {
+    width: 20px;
+    height: 20px;
+}
+/* Target the copy button when it shows the checkmark */
+.fen-input-wrapper .btn-icon:has(svg:first-child:last-child) {
+    color: var(--success-color);
+}
+.fen-input {
+  flex-grow: 1;
+  padding: 0.5rem;
+  height: 40px;
+  background-color: #f9fafb;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  border-radius: 0.25rem;
+  font-family: monospace; /* Monospace for better FEN readability */
+}
+/* Style for invalid FEN input */
+.fen-input.invalid {
+    border-color: var(--error-color);
+    background-color: #fee2e2;
+}
+.fen-input.invalid:focus {
+    outline: 1px solid var(--error-color);
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+/* Promotion Overlay: Shown when a pawn reaches the final rank. */
+.promotion-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.promotion-choices {
+  background-color: #ffffff;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+.promotion-choices .piece {
+  width: 60px;
+  height: 60px;
+  padding: 0; /* Override default piece padding */
+}
+
+/* Remove Zone: Drop target in the editor to remove a piece from the board. */
+.remove-zone {
+  min-height: 44px;
+  border: 2px dashed var(--dashed-border-color);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-in-out;
+  color: var(--text-muted-color);
+  flex-grow: 1; /* Allows it to fill space in the actions row */
+  flex-basis: 0;
+  background-color: #f9fafb;
+}
+/* Highlight when dragging over the remove zone */
+.remove-zone.drag-over, .remove-zone.dragging-active {
+  background-color: #fee2e2;
+  border-color: var(--error-color);
+  color: var(--error-color);
+  transform: scale(1.05);
+  border-style: solid;
+}
+.remove-zone svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+/* Spinner: A simple loading indicator. */
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 5px solid var(--border-color);
+  border-bottom-color: var(--primary-color); /* The spinning part */
+  border-radius: 50%;
+  display: inline-block;
+  animation: rotation 1s linear infinite;
+}
+.spinner-small {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-bottom-color: #ffffff;
+    border-radius: 50%;
+    display: inline-block;
+    animation: rotation 1s linear infinite;
+}
+@keyframes rotation {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.loading-message {
+    min-height: 24px;
+    color: var(--text-muted-color);
+    animation: fade-in 0.5s ease-out;
+}
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Turn Selector: Radio buttons for selecting whose turn it is. */
+.turn-selector-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-grow: 1;
+  min-width: 150px;
+}
+/* Hide the actual radio input */
+.turn-selector-inline input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+/* Style the label to look like a button */
+.turn-selector-inline label {
+  flex: 1;
+  text-align: center;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  background-color: #ffffff;
+  color: var(--text-color);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  font-size: 0.875rem;
+  font-weight: 500;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Style the label when its corresponding input is checked */
+.turn-selector-inline input:checked + label {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+/* Accessibility focus style */
+.turn-selector-inline input:focus-visible + label {
+    box-shadow: 0 0 0 2px var(--highlight-color);
+}

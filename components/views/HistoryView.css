@@ -1,0 +1,20 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+.history-view-section {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    flex-grow: 1; /* Allow section to fill space */
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.history-view-section .stored-files-list,
+.history-view-section .empty-state {
+    flex-grow: 1;
+    overflow-y: auto; /* Enable scrolling if content overflows */
+}

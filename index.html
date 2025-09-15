@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nandan's - Scan to Play Chess</title>
+    
+    <!-- Favicon: An SVG icon that represents the app in browser tabs and bookmarks. -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23F4F1ED'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' dy='.1em'%3E%E2%99%9C%3C/text%3E%3C/svg%3E">
+    
+    <!-- Link to the external font used in the application. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Stylesheet for the image cropping component -->
+    <link rel="stylesheet" href="https://aistudiocdn.com/react-image-crop@^11.0.10/dist/ReactCrop.css">
+
+    <!-- The importmap must be defined before any module scripts are loaded. -->
+    <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.17.0",
+    "react-image-crop": "https://aistudiocdn.com/react-image-crop@^11.0.10",
+    "chess.js": "https://aistudiocdn.com/chess.js@^1.4.0",
+    "pdfjs-dist/": "https://aistudiocdn.com/pdfjs-dist@^5.4.149/"
+  }
+}
+</script>
+    
+</head>
+<body>
+    <!-- The root DOM element where the React application will be mounted. -->
+    <div id="root">
+        <!-- A simple loading indicator to show while the engine initializes. -->
+        <div style="text-align: center; padding-top: 4rem; font-family: sans-serif; color: #6b7280;">
+            <h2>Loading Application...</h2>
+            <noscript>This application requires JavaScript to run.</noscript>
+        </div>
+    </div>
+    
+    <!-- The main application script is loaded directly. -->
+    <script type="module" src="./index.tsx"></script>
+</body>
+</html>

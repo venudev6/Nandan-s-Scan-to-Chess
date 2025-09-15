@@ -1,0 +1,48 @@
+/*
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+/* Loading View: Shown during AI analysis. */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  min-height: 150px;
+  text-align: center;
+}
+/* Tips shown if the scan fails */
+.scan-failed-tips {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  text-align: left;
+  width: 100%;
+  max-width: 400px;
+}
+.scan-failed-tips h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text-color);
+}
+.scan-failed-tips ul {
+  list-style-type: none;
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.scan-failed-tips li {
+  font-size: 0.875rem;
+  color: var(--text-muted-color);
+  line-height: 1.5;
+}
+.scan-failed-tips li strong {
+  color: var(--text-color);
+  font-weight: 500;
+}

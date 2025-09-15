@@ -1,0 +1,81 @@
+/*
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+/* 1. VARIABLES & THEMES */
+/* CSS Custom Properties (variables) for consistent theming and easier maintenance. */
+:root {
+  /* Color Palette */
+  --primary-color: #6366f1;         /* Main interactive color (buttons, highlights) */
+  --primary-hover: #4f46e5;       /* Color for primary elements on hover */
+  --background-color: #F5F5F5;     /* Main page background */
+  --background-color-alt: #F5F5F5; /* Alternative background, if needed */
+  --card-background: transparent;      /* Background for card elements */
+  --text-color: #1f2937;           /* Default text color */
+  --text-muted-color: #6b7280;     /* Lighter text for secondary info */
+  --border-color: #e5e7eb;         /* Standard border color */
+  --dashed-border-color: #d1d5db; /* Color for dashed borders (e.g., drop zones) */
+  --success-color: #22c55e;        /* Color for success states (e.g., checkmarks) */
+  --error-color: #ef4444;          /* Color for error states (e.g., validation) */
+
+  /* Chessboard Colors (Default Theme) */
+  --board-light: #f0d9b5;          /* Light squares on the chessboard */
+  --board-dark: #b58863;           /* Dark squares on the chessboard */
+  --highlight-color: rgba(99, 102, 241, 0.2); /* Highlight for selected squares */
+}
+
+/* Board Theme Overrides */
+.theme-green {
+  --board-light: #ebecd0;
+  --board-dark: #739552;
+}
+
+.theme-blue {
+  --board-light: #d4dce2;
+  --board-dark: #98b0c1;
+}
+
+.theme-wood {
+  --board-light: #ead1a9;
+  --board-dark: #c4915e;
+}
+
+
+/* 2. BASE STYLES */
+/* Reset and base styling for all elements. */
+* {
+  box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height. */
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%; /* Ensure layout can fill the full viewport height */
+  font-family: 'Inter', sans-serif; /* Modern, readable sans-serif font */
+  background-color: var(--background-color);
+  color: var(--text-color);
+  overscroll-behavior: none; /* Prevents "pull-to-refresh" or page bounce on mobile */
+  overflow-x: hidden; /* Prevent horizontal scrolling on the page */
+}
+
+/* The root container where the React app is mounted. */
+#root {
+  height: 100%;
+}
+
+/* The main application wrapper. */
+.app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The main content area that holds the current view. */
+.app-main-content {
+  flex: 1; /* Allows this area to grow and fill available space */
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Critical for allowing nested flex containers to shrink correctly */
+}

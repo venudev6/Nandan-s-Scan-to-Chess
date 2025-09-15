@@ -1,0 +1,47 @@
+/*
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+/* SHARED VIEW LAYOUT STYLES */
+
+/* Result & Solve View Layout */
+.result-view-card, .solve-view-card {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Make the card fill the main content area */
+    min-height: 0; /* Allow the card to shrink if needed */
+}
+
+/* Using CSS Grid for the solve view layout on desktop */
+.solve-view-container {
+    display: grid;
+    grid-template-columns: auto 280px; /* Board column sized to content */
+    grid-template-rows: auto minmax(0, 1fr); /* Allow rows to shrink to prevent overflow */
+    grid-template-areas:
+        "board captured"
+        "board controls";
+    gap: 1.5rem;
+    align-items: stretch;
+    width: 100%;
+    flex-grow: 1;
+    min-height: 0; /* Ensures grid can shrink inside a flex container */
+    justify-content: center; /* Center the grid columns as a group */
+}
+
+/* RESPONSIVE OVERRIDES */
+
+@media (max-width: 768px) and (orientation: portrait) {
+    /* Switch solve views to a single column layout */
+    .solve-view-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        justify-content: flex-start; /* Reset justification for flex layout */
+        height: 100%;
+    }
+    .result-view-card, .solve-view-card {
+        padding: 0;
+    }
+}

@@ -1,0 +1,119 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+/* Move History (Revamped): Displays the list of moves made. */
+.move-history-panel {
+    background: #ffffff;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0; /* Flex properties to allow it to grow and shrink */
+    min-height: 0; /* Important for flexbox scrolling in a column */
+}
+/* Scrolling container for the move list */
+.move-history-content {
+    overflow-y: auto;
+    flex-grow: 1;
+}
+/* Hide scrollbars for a cleaner look, scrolling still works with touch/wheel */
+.editor-controls-panel::-webkit-scrollbar, .solve-controls::-webkit-scrollbar, .move-history-content::-webkit-scrollbar {
+  display: none;
+}
+.editor-controls-panel, .solve-controls, .move-history-content {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.move-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+/* A pair of moves (White and Black) */
+.move-pair {
+    display: flex;
+    align-items: baseline;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+.move-number {
+    font-weight: 600;
+    color: var(--text-muted-color);
+    width: 2em; /* Fixed width for alignment */
+    text-align: right;
+    padding-right: 2px;
+    flex-shrink: 0;
+}
+.move-notation {
+    cursor: pointer;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-right: 2px;
+    flex-shrink: 0;
+    min-width: 50px;
+    text-align: center;
+}
+.move-notation:hover {
+    background-color: #e5e7eb;
+}
+/* Placeholder for black's move when white starts */
+.move-notation.placeholder {
+    cursor: default;
+    color: var(--text-muted-color);
+}
+.move-notation.placeholder:hover {
+    background-color: transparent;
+}
+.move-notation.active {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+.no-moves-placeholder {
+    color: var(--text-muted-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+.no-moves-placeholder h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    /* CRITICAL: This is the main fix to remove the internal scrollbar on the move list */
+    .app-state-solve .move-history-content {
+        overflow-y: visible;
+    }
+    .app-state-solve .move-history-panel {
+        min-height: 100px;
+        max-height: none; /* Allow panel to grow with content */
+    }
+    .app-state-solve .move-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 0 0.25rem;
+        font-size: 0.85rem;
+    }
+    .app-state-solve .move-pair {
+      padding: 0;
+    }
+    .app-state-solve .move-number {
+        width: 2em;
+        padding-right: 2px;
+    }
+    .app-state-solve .move-notation {
+        min-width: 40px;
+        padding: 0.1rem 0.2rem;
+        margin-right: 2px;
+    }
+}

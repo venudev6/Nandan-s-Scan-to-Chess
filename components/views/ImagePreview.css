@@ -1,0 +1,62 @@
+/*
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+/* Image Preview & Crop Tool: For cropping the image before analysis. */
+.image-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+.image-preview {
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+  display: block;
+}
+.ReactCrop {
+    max-height: 60vh;
+}
+.preview-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    width: 100%;
+}
+.preview-button-group {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* React Crop Overrides for better visibility and smoother movement */
+.ReactCrop__crop-selection {
+  border: 3px solid var(--primary-color) !important;
+  box-shadow: 0 0 0 9999em rgba(0, 0, 0, 0.5); /* Dim the area outside the crop */
+  /* Promoting to its own composite layer for smoother transforms. */
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.ReactCrop__drag-handle {
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid var(--primary-hover);
+    width: 12px;
+    height: 12px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.4);
+    border-radius: 50%;
+}
+/* Larger touch targets for handles for easier use on mobile */
+.ReactCrop__drag-handle::after {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: -12px;
+    right: -12px;
+    bottom: -12px;
+}

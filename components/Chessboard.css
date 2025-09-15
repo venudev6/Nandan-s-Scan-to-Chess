@@ -1,0 +1,124 @@
+/*
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+/* Chessboard & Piece: Core styles for the board and its components. */
+.board-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.chessboard-container {
+  position: relative;
+  aspect-ratio: 1 / 1; /* Maintain a square shape */
+  max-width: 100%;
+  max-height: 100%;
+}
+/* Change cursor when placing a new piece from the palette */
+.chessboard-container.is-holding-piece .square {
+    cursor: copy;
+}
+.chessboard {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--board-dark);
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+.square {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.square.light { background-color: var(--board-light); }
+.square.dark { background-color: var(--board-dark); }
+/* Highlight for the previous move */
+.square.last-move-square {
+  background-color: rgba(255, 255, 0, 0.4);
+}
+/* Highlight for the currently selected piece's square */
+.square.selected,
+.square.held-piece-origin {
+  background-color: var(--highlight-color);
+}
+/* Highlight for squares with low-confidence AI detection */
+.square.uncertain-square {
+  box-shadow: inset 0 0 0 3px #f59e0b; /* amber-500 */
+  animation: pulse-uncertain 2s infinite;
+}
+@keyframes pulse-uncertain {
+    0% { box-shadow: inset 0 0 0 3px rgba(245, 158, 11, 0.7); }
+    50% { box-shadow: inset 0 0 0 3px rgba(245, 158, 11, 0.3); }
+    100% { box-shadow: inset 0 0 0 3px rgba(245, 158, 11, 0.7); }
+}
+
+/* Indicator for a possible move to an empty square */
+.possible-move-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30%;
+  height: 30%;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  z-index: 1;
+}
+/* Indicator for a possible capture move */
+.possible-move-capture {
+  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.2);
+}
+.possible-move-capture .piece {
+  opacity: 0.8;
+}
+/* Rank and file notations (e.g., 'a', '8') */
+.notation {
+  position: absolute;
+  font-size: clamp(8px, 2vmin, 16px); /* Responsive font size */
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+}
+.square.light .notation { color: var(--board-dark); }
+.square.dark .notation { color: var(--board-light); }
+.notation.rank { top: 2px; left: 3px; }
+.notation.file { bottom: 2px; right: 3px; }
+
+/* Chess piece styles */
+.piece {
+  width: 100%;
+  height: 100%;
+  display: block; /* For SVG tag */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none; /* For older browsers */
+  transition: opacity 0.1s ease, background-color 0.2s;
+  touch-action: none; /* Improve touch interactions */
+  position: relative;
+  z-index: 2; /* Ensure pieces are above square indicators */
+  will-change: transform; /* Performance optimization for dragging */
+  padding: 0;
+  box-sizing: border-box;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+.piece:active { cursor: grabbing; }
+/* Style for a piece being dragged or held (on mobile) */
+.piece.dragging, .piece.is-held {
+  opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+    .chessboard-container {
+        width: 100%; /* Make it take full width of its container */
+        max-height: none; /* Unconstrain the height, let aspect-ratio handle it */
+    }
+}

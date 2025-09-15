@@ -1,0 +1,114 @@
+/*
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+/* Styles for Authentication Views (Login & Register) */
+.auth-card {
+    max-width: 420px;
+    margin: 2rem auto;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.auth-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0;
+}
+.auth-subtitle {
+    color: var(--text-muted-color);
+    margin: -1rem 0 0 0;
+    text-align: center;
+}
+.auth-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.form-group {
+    width: 100%;
+}
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+.form-group input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+}
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+.auth-submit-btn {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.875rem;
+    font-size: 1rem;
+}
+.auth-separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--text-muted-color);
+    width: 100%;
+    font-size: 0.875rem;
+}
+.auth-separator::before,
+.auth-separator::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+.auth-separator:not(:empty)::before {
+    margin-right: .5em;
+}
+.auth-separator:not(:empty)::after {
+    margin-left: .5em;
+}
+.google-btn {
+    width: 100%;
+}
+.google-btn img {
+    width: 18px;
+    height: 18px;
+}
+.auth-footer-text {
+    font-size: 0.875rem;
+    color: var(--text-muted-color);
+}
+.auth-footer-text a {
+    color: var(--primary-color);
+    font-weight: 500;
+    text-decoration: none;
+}
+.auth-footer-text a:hover {
+    text-decoration: underline;
+}
+.footer-link-separator {
+    margin: 0 0.5rem;
+    color: var(--text-muted-color);
+}
+.auth-error-banner {
+    background-color: #fee2e2;
+    color: #991b1b;
+    padding: 0.75rem 1rem;
+    border: 1px solid #fecaca;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    text-align: center;
+}

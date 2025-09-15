@@ -1,0 +1,8 @@
+{
+  "name": "Nandan's Scan to Chess",
+  "description": "Scan a chess position from an image and analyze it.",
+  "requestFramePermissions": [
+    "camera",
+    "clipboard-read"
+  ]
+}

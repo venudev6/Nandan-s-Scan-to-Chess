@@ -1,0 +1,230 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+/* Solve View Panels */
+.board-area {
+    grid-area: board;
+    position: relative; /* For overlay positioning */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 0;
+    min-width: 0;
+}
+.solve-view-header {
+    grid-area: captured;
+    padding: 0 0.5rem 0.5rem 0;
+}
+.solve-controls {
+    grid-area: controls;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem; /* Use a consistent gap */
+    overflow-y: auto;
+    min-height: 0;
+    padding: 0 0.5rem 0.5rem 0;
+}
+.captured-pieces-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.move-navigation-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    width: 100%;
+}
+.solve-main-actions {
+    margin-top: auto; /* Push to bottom */
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.solve-main-actions .btn-analyze, .solve-main-actions .btn-dark {
+    text-align: center;
+    font-size: 0.9rem;
+    padding: 0.6rem 1rem;
+    width: 100%; /* Make analysis buttons full width */
+}
+.solve-main-actions .result-actions {
+    display: flex;
+    gap: 0.75rem;
+    width: 100%; /* Make button group full width */
+}
+.solve-main-actions .result-actions .btn-secondary { /* Home */
+    flex: 1 1 0%;
+}
+.solve-main-actions .result-actions .btn-analyze { /* Next Puzzle */
+    flex: 2 1 0%;
+}
+.solve-main-actions .result-actions .btn-icon {
+    flex: 0 0 44px; /* Fixed width for icon button */
+}
+.drawing-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+.drawing-overlay line {
+    stroke: rgba(211, 45, 39, 0.8);
+    stroke-width: 8;
+    stroke-linecap: round;
+}
+.drawing-overlay polygon {
+    fill: rgba(211, 45, 39, 0.8);
+}
+.game-over-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    gap: 1rem;
+}
+.game-over-overlay h2 {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+/* Wrapper to position the save button relative to the history panel */
+.move-history-wrapper {
+    position: relative;
+    flex: 1 1 0; /* Allow it to grow and shrink */
+    min-height: 0; /* Important for flexbox scrolling in a column */
+    display: flex; /* Make it a flex container to contain the history panel */
+}
+
+.save-game-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background-color: #fff;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    width: 36px;
+    height: 36px;
+    z-index: 10;
+    color: var(--text-muted-color);
+    padding: 0;
+}
+
+.save-game-btn:hover:not(:disabled) {
+    background-color: #eef2ff;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.save-game-btn.bookmarked,
+.save-game-btn.bookmarked:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+
+.save-game-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.save-toast {
+    position: fixed; /* Use fixed to position relative to viewport */
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--success-color); /* Use success color */
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px; /* Pill shape */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000; /* High z-index to appear on top of everything */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    animation: fade-in-out-toast 3s ease-in-out forwards;
+}
+
+.save-toast svg {
+    width: 20px;
+    height: 20px;
+}
+
+@keyframes fade-in-out-toast {
+    0% { opacity: 0; transform: translate(-50%, -20px); }
+    10% { opacity: 1; transform: translate(-50%, 0); }
+    90% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+/* RESPONSIVE OVERRIDES */
+@media (max-width: 768px) {
+    .board-area {
+        padding: 0 1rem;
+        flex-shrink: 0; /* Prevent the board from shrinking */
+    }
+    .solve-view-header {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+    }
+    .captured-pieces-stack {
+        flex-direction: row; /* Horizontal on mobile */
+        width: 100%;
+        gap: 0.5rem;
+    }
+    .solve-controls {
+        padding: 0 1rem 1rem;
+        flex-shrink: 1; /* Allow controls to shrink and scroll */
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Reorder for better mobile layout */
+    .move-navigation-controls {
+        order: 2; /* Moves nav buttons below history */
+        margin-left: -1rem;
+        margin-right: -1rem;
+        padding: 0.75rem 1rem;
+        justify-content: space-around;
+        background-color: #f3f4f6;
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        margin-top: 0.5rem;
+    }
+    .move-history-wrapper {
+        order: 1;
+    }
+    .solve-main-actions {
+        order: 3;
+        border-top: none;
+        padding-top: 0.5rem;
+    }
+    /* Adjust save button for mobile */
+    .save-game-btn {
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+    .solve-main-actions .result-actions .btn-secondary,
+    .solve-main-actions .result-actions .btn-analyze {
+        flex-grow: 1;
+        flex-basis: 0;
+    }
+}
