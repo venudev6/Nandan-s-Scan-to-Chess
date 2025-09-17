@@ -5,11 +5,7 @@
 
 /* Move History (Revamped): Displays the list of moves made. */
 .move-history-panel {
-    background: #ffffff;
-    padding: 1rem;
-    border-radius: 0.75rem;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    /* Styles moved to .move-history-wrapper in SolveView.css */
     display: flex;
     flex-direction: column;
     flex: 1 1 0; /* Flex properties to allow it to grow and shrink */
@@ -83,10 +79,8 @@
     height: 100%;
 }
 .no-moves-placeholder h4 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-color);
-    margin: 0;
+    /* Replaced by a pseudo-element on the wrapper in SolveView.css */
+    display: none;
 }
 
 @media (max-width: 768px) {

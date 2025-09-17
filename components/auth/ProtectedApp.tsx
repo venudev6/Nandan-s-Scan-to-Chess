@@ -253,6 +253,7 @@ export const ProtectedApp = ({
                         onDeletePdf={handleDeletePdf}
                         onSavedGamesClick={onSavedGamesClick}
                         onHistoryClick={onHistoryClick}
+                        // FIX: Pass missing props to InitialView component.
                         storedPdfs={storedPdfs}
                         isProcessingPdf={isProcessingPdf}
                         onAuthRequired={onAuthRequired}
@@ -263,63 +264,29 @@ export const ProtectedApp = ({
             case 'camera':
                 return <CameraView onCapture={handleFileSelect} onBack={resetToInitial} />;
             case 'preview':
-                if (!imageData) {
-                    setError('No image to preview.');
-                    setAppState('error');
-                    return null;
-                }
-                return <ImagePreview imageFile={imageData} onConfirm={handleCropConfirm} onBack={resetToInitial} />;
+                return imageData && <ImagePreview imageFile={imageData} onConfirm={handleCropConfirm} onBack={resetToInitial} />;
             case 'pdfViewer':
-                if (!selectedPdf || !selectedPdf.doc) {
-                    setError('No PDF selected.');
-                    setAppState('error');
-                    return null;
-                }
-                return (
-                    <PdfView
-                        pdfId={selectedPdf.id}
-                        pdfDoc={selectedPdf.doc}
-                        isDocLoading={isProcessingPdf}
-                        initialPage={selectedPdf.lastPage}
-                        initialZoom={selectedPdf.lastZoom}
-                        onCropConfirm={handlePdfCropConfirm}
-                        onBack={resetToInitial}
-                        onStateChange={handlePdfStateChange}
-                    />
-                );
+                return selectedPdf && <PdfView 
+                    pdfId={selectedPdf.id}
+                    pdfDoc={selectedPdf.doc} 
+                    isDocLoading={isProcessingPdf}
+                    initialPage={selectedPdf.lastPage}
+                    initialZoom={selectedPdf.lastZoom}
+                    onCropConfirm={handlePdfCropConfirm} 
+                    onBack={resetToInitial} 
+                    onStateChange={handlePdfStateChange}
+                />;
             case 'loading':
-                return (
-                    <LoadingView
-                        onCancel={resetToInitial}
-                        scanFailed={!isAnalyzing && !analysisResult}
-                        onRetry={() => {
-                            if (pdfContext) {
-                                if (croppedImageDataUrl) {
-                                    const blob = dataUrlToBlob(croppedImageDataUrl);
-                                    const file = new File([blob], "cropped_puzzle.png", { type: "image/png" });
-                                    handlePdfCropConfirm(file, pdfContext);
-                                } else {
-                                    resetToInitial();
-                                }
-                            } else if (imageData) {
-                                handleCropConfirm(imageData);
-                            }
-                        }}
-                    />
-                );
+                // Pass a boolean to indicate whether the analysis failed. analysisResult will be null on first scan, and not null on subsequent successful scans.
+                return <LoadingView onCancel={resetToInitial} scanFailed={!isAnalyzing && !analysisResult} onRetry={handleRescan} />;
             case 'result':
-                if (!analysisResult) {
-                    setError('Analysis result is missing.');
-                    setAppState('error');
-                    return null;
-                }
-                return (
-                    <ResultView
-                        initialFen={analysisResult.fen}
-                        initialTurn={analysisResult.turn}
-                        originalImage={croppedImageDataUrl}
-                        onBack={() => pdfContext ? setAppState('pdfViewer') : resetToInitial()}
-                        onAnalyze={handleAnalyze}
+                return analysisResult && (
+                    <ResultView 
+                        initialFen={analysisResult.fen} 
+                        initialTurn={analysisResult.turn} 
+                        originalImage={croppedImageDataUrl} 
+                        onBack={resetToInitial} 
+                        onAnalyze={handleAnalyze} 
                         analysisDetails={analysisResult.details}
                         onRescan={handleRescan}
                         isRescanning={isRescanning}
@@ -330,18 +297,11 @@ export const ProtectedApp = ({
                         onAdminPanelClick={onAdminPanelClick}
                         onSavedGamesClick={onSavedGamesClick}
                         onHistoryClick={onHistoryClick}
-                        appSettings={appSettings}
-                        onAuthRequired={onAuthRequired}
                     />
                 );
             case 'solve':
-                if (!analysisResult) {
-                    setError('Cannot solve without an analysis result.');
-                    setAppState('error');
-                    return null;
-                }
-                return (
-                    <SolveView
+                return analysisResult && (
+                    <SolveView 
                         initialFen={analysisResult.fen}
                         onBack={() => setAppState(previousAppState)}
                         onHome={resetToInitial}
@@ -349,20 +309,27 @@ export const ProtectedApp = ({
                         onNextPuzzle={handleNextPuzzle}
                         source={pdfContext ? 'pdf' : 'image'}
                         initialHistory={initialGameHistory}
-                        initialGameId={loadedGameId}
                         sourceView={previousAppState}
+                        initialGameId={loadedGameId}
+                        user={user}
+                        isLoggedIn={isLoggedIn}
+                        onLogout={logout}
+                        onAdminPanelClick={onAdminPanelClick}
+                        onSavedGamesClick={onSavedGamesClick}
+                        onHistoryClick={onHistoryClick}
                     />
                 );
             case 'savedGames':
                 return <SavedGamesView onGameSelect={handleSavedGameSelect} onBack={resetToInitial} />;
-            case 'history':
+             case 'history':
                 return <HistoryView onGameSelect={handleHistorySelect} onBack={resetToInitial} />;
             case 'error':
                 return <ErrorView message={error || 'An unknown error occurred.'} onRetry={resetToInitial} />;
             default:
-                return <div>Unknown state</div>;
+                return <div>Invalid state</div>;
         }
     };
-    
-    return <>{renderContent()}</>;
+
+    // FIX: Add return statement to the functional component.
+    return renderContent();
 };

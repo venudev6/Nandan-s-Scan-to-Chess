@@ -9,13 +9,13 @@
     position: relative; /* For overlay positioning */
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: center; /* Vertically align board to the center */
     min-height: 0;
     min-width: 0;
 }
 .solve-view-header {
     grid-area: captured;
-    padding: 0 0.5rem 0.5rem 0;
+    padding: 0;
 }
 .solve-controls {
     grid-area: controls;
@@ -24,7 +24,7 @@
     gap: 0.75rem; /* Use a consistent gap */
     overflow-y: auto;
     min-height: 0;
-    padding: 0 0.5rem 0.5rem 0;
+    padding-bottom: 0.5rem;
 }
 .captured-pieces-stack {
     display: flex;
@@ -39,6 +39,82 @@
     padding: 0.5rem 0;
     width: 100%;
 }
+.move-navigation-controls .btn-icon {
+    flex: 1; /* Make buttons distribute space evenly */
+}
+
+.engine-thinking-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(255, 255, 255, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 25; /* Higher than other board elements */
+    border-radius: 4px;
+    gap: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.engine-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.engine-control-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.engine-control-item .turn-selector-inline {
+    flex-grow: 0;
+    min-width: 0;
+    gap: 0.25rem;
+}
+
+.engine-control-item .turn-selector-inline label {
+    width: 50px;
+    height: 36px;
+    padding: 0.25rem;
+}
+.engine-control-item .turn-selector-inline label svg {
+    width: 24px;
+    height: 24px;
+}
+
+.engine-controls .get-hint-btn {
+    width: 100%;
+}
+
+.engine-output {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.evaluation-display, .best-move-display {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    color: var(--text-muted-color);
+}
+.evaluation-display span, .best-move-display span {
+    font-weight: 600;
+    font-family: monospace;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
 .solve-main-actions {
     margin-top: auto; /* Push to bottom */
     padding-top: 1rem;
@@ -90,141 +166,174 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    color: white;
+    background-color: rgba(255, 255, 255, 0.8);
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    z-index: 10;
+    justify-content: center;
     gap: 1rem;
+    z-index: 20;
+    border-radius: 4px;
 }
 .game-over-overlay h2 {
     font-size: 2rem;
     font-weight: 700;
+    color: var(--text-color);
 }
 
-/* Wrapper to position the save button relative to the history panel */
+.solve-view-container {
+    display: grid;
+    align-items: stretch;
+    width: 100%;
+    flex-grow: 1;
+    min-height: 0;
+    justify-content: center;
+    max-width: 1400px;
+    margin: 0 auto;
+    gap: 12px;
+}
+
+/* Guest view: 2 columns */
+.solve-view-container.guest {
+    grid-template-columns: 1fr 280px;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+        "board captured"
+        "board controls";
+}
+
+/* Logged-in view: 3 columns */
+.solve-view-container.logged-in {
+    grid-template-columns: 240px 1fr 280px;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+        "user-panel board captured"
+        "user-panel board controls";
+}
+
+/* Save confirmation toast */
+.save-toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--text-color);
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 9999px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    animation: fade-in-out-toast 2.5s ease-in-out forwards;
+}
+.save-toast svg {
+    width: 20px;
+    height: 20px;
+    color: var(--success-color);
+}
+@keyframes fade-in-out-toast {
+    0% { opacity: 0; transform: translate(-50%, 20px); }
+    15% { opacity: 1; transform: translate(-50%, 0); }
+    85% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
 .move-history-wrapper {
-    position: relative;
-    flex: 1 1 0; /* Allow it to grow and shrink */
-    min-height: 0; /* Important for flexbox scrolling in a column */
-    display: flex; /* Make it a flex container to contain the history panel */
-}
+    position: relative; /* For positioning the bookmark button */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Take up available space */
+    min-height: 0; /* Crucial for child with overflow-y to scroll */
 
+    /* Styles for the "outline" from user request */
+    background: #ffffff;
+    padding: 1rem;
+    padding-top: 2.75rem; /* Room for title */
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.move-history-wrapper::before {
+    content: "Move History";
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
 .save-game-btn {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
-    background-color: #fff;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     width: 36px;
     height: 36px;
-    z-index: 10;
-    color: var(--text-muted-color);
-    padding: 0;
 }
-
-.save-game-btn:hover:not(:disabled) {
-    background-color: #eef2ff;
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-.save-game-btn.bookmarked,
-.save-game-btn.bookmarked:hover {
-    background-color: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
-}
-
-
 .save-game-btn svg {
     width: 20px;
     height: 20px;
 }
 
-.save-toast {
-    position: fixed; /* Use fixed to position relative to viewport */
-    top: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--success-color); /* Use success color */
+.save-game-btn.bookmarked {
+    background-color: var(--primary-color);
     color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 9999px; /* Pill shape */
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    z-index: 10000; /* High z-index to appear on top of everything */
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 600;
-    animation: fade-in-out-toast 3s ease-in-out forwards;
+    border-color: var(--primary-hover);
 }
 
-.save-toast svg {
-    width: 20px;
-    height: 20px;
+.save-game-btn.bookmarked:hover {
+    background-color: var(--primary-hover);
 }
 
-@keyframes fade-in-out-toast {
-    0% { opacity: 0; transform: translate(-50%, -20px); }
-    10% { opacity: 1; transform: translate(-50%, 0); }
-    90% { opacity: 1; transform: translate(-50%, 0); }
-    100% { opacity: 0; transform: translate(-50%, -20px); }
-}
 
-/* RESPONSIVE OVERRIDES */
-@media (max-width: 768px) {
-    .board-area {
-        padding: 0 1rem;
-        flex-shrink: 0; /* Prevent the board from shrinking */
+@media (max-width: 768px) and (orientation: portrait) {
+    .solve-view-container {
+        max-width: 100%;
+        margin: 0;
+        gap: 0;
+        justify-content: initial;
+        height: 100%;
     }
+
+    .solve-view-container.guest {
+        grid-template-columns: 1fr; /* Single column */
+        grid-template-rows: auto auto 1fr; /* Captured, Board, Controls */
+        grid-template-areas:
+            "captured"
+            "board"
+            "controls";
+    }
+    
+    .solve-view-container.logged-in {
+        grid-template-columns: 1fr; /* Single column */
+        grid-template-rows: auto auto auto 1fr; /* User Panel, Captured, Board, Controls */
+        grid-template-areas:
+            "user-panel"
+            "captured"
+            "board"
+            "controls";
+    }
+
     .solve-view-header {
-        display: flex;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
+        padding: 0.75rem;
     }
-    .captured-pieces-stack {
-        flex-direction: row; /* Horizontal on mobile */
-        width: 100%;
-        gap: 0.5rem;
+
+    .board-area {
+        padding: 1rem;
+        background-color: #ffffff;
     }
+
     .solve-controls {
-        padding: 0 1rem 1rem;
-        flex-shrink: 1; /* Allow controls to shrink and scroll */
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    /* Reorder for better mobile layout */
-    .move-navigation-controls {
-        order: 2; /* Moves nav buttons below history */
-        margin-left: -1rem;
-        margin-right: -1rem;
-        padding: 0.75rem 1rem;
-        justify-content: space-around;
-        background-color: #f3f4f6;
+        padding: 1rem;
+        background-color: var(--background-color);
         border-top: 1px solid var(--border-color);
-        border-bottom: 1px solid var(--border-color);
-        margin-top: 0.5rem;
+        overflow-y: auto; /* Allow content to flow */
+        flex-shrink: 0; /* Don't shrink the controls panel */
     }
-    .move-history-wrapper {
-        order: 1;
-    }
+
     .solve-main-actions {
-        order: 3;
-        border-top: none;
-        padding-top: 0.5rem;
-    }
-    /* Adjust save button for mobile */
-    .save-game-btn {
-        top: 0.5rem;
-        right: 0.5rem;
-    }
-    .solve-main-actions .result-actions .btn-secondary,
-    .solve-main-actions .result-actions .btn-analyze {
-        flex-grow: 1;
-        flex-basis: 0;
+        margin-top: 0.5rem;
     }
 }

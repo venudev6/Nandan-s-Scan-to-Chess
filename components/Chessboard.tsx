@@ -28,6 +28,7 @@ const Chessboard = React.memo(({
   uncertainSquares = [],
   isFlipped = false,
   heldPiece,
+  bestMoveHighlight,
 }: {
   /** The 8x8 2D array representing the board position. */
   boardState: BoardState;
@@ -47,6 +48,8 @@ const Chessboard = React.memo(({
   isFlipped?: boolean;
   /** The piece currently being held, for both click-to-move and drag-and-drop. */
   heldPiece?: HeldPiece | null;
+  /** The best move suggested by the engine, for highlighting. */
+  bestMoveHighlight?: { from: string, to: string } | null;
 }) => {
     
     // Determine the order of ranks and files based on whether the board is flipped.
@@ -83,6 +86,13 @@ const Chessboard = React.memo(({
             return `${coords.row}-${coords.col}`;
         }));
     }, [uncertainSquares]);
+
+    const bestMoveSquares = useMemo(() => {
+        if (!bestMoveHighlight) return new Set();
+        const fromCoords = getSquareCoords(bestMoveHighlight.from);
+        const toCoords = getSquareCoords(bestMoveHighlight.to);
+        return new Set([`${fromCoords.row}-${fromCoords.col}`, `${toCoords.row}-${toCoords.col}`]);
+    }, [bestMoveHighlight]);
     
     // Determine the source square of the currently held piece for styling.
     const heldSquare = (heldPiece && typeof heldPiece.from === 'object' && 'row' in heldPiece.from) ? heldPiece.from : null;
@@ -106,7 +116,8 @@ const Chessboard = React.memo(({
                 const isLastMove = lastMoveSquares.has(`${row}-${col}`);
                 const isPossibleMove = possibleMoveSquares.has(`${row}-${col}`);
                 const isUncertain = uncertainSquareSet.has(`${row}-${col}`);
-                const squareName = `${FILES[col]}${RANKS[7-row]}`;
+                const isBestMove = bestMoveSquares.has(`${row}-${col}`);
+                const squareName = `${FILES[col]}${RANKS[7 - row]}`;
                 const hasPiece = !!piece;
                 
                 const isHeldOrigin = heldSquare && heldSquare.row === row && heldSquare.col === col;
@@ -118,7 +129,7 @@ const Chessboard = React.memo(({
                         data-row={row}
                         data-col={col}
                         // Dynamically build the CSS class list based on the square's state.
-                        className={`square ${isLight ? 'light' : 'dark'} ${isSelected ? 'selected' : ''} ${isLastMove ? 'last-move-square' : ''} ${isHeldOrigin ? 'held-piece-origin' : ''} ${isUncertain ? 'uncertain-square' : ''}`}
+                        className={`square ${isLight ? 'light' : 'dark'} ${isSelected ? 'selected' : ''} ${isLastMove ? 'last-move-square' : ''} ${isHeldOrigin ? 'held-piece-origin' : ''} ${isUncertain ? 'uncertain-square' : ''} ${isBestMove ? 'best-move-square' : ''}`}
                         onClick={() => onSquareClick?.({ row, col })}
                         aria-label={`Square ${squareName}`}
                     >

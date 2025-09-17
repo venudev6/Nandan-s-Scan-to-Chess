@@ -2,30 +2,112 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import type { PieceSymbol as ChessJSPieceSymbol } from 'chess.js';
+import type { PieceSymbol as ChessJSPieceSymbol, Square as ChessJSSquare } from 'chess.js';
 import Chessboard from '../Chessboard';
 import CapturedPieces from '../ui/CapturedPieces';
 import MoveHistory from '../ui/MoveHistory';
 import { soundManager } from '../../lib/SoundManager';
-import { BackIcon, FlipIcon, FirstMoveIcon, PrevMoveIcon, NextMoveIcon, LastMoveIcon, BookmarkIcon, BookmarkFilledIcon, CheckIcon } from '../ui/Icons';
+import { BackIcon, FlipIcon, FirstMoveIcon, PrevMoveIcon, NextMoveIcon, LastMoveIcon, BookmarkIcon, BookmarkFilledIcon, CheckIcon, EngineIcon, LightbulbIcon, HumanIcon, ComputerIcon, ResetIcon } from '../ui/Icons';
 import { PIECE_COMPONENTS, PIECE_NAMES } from '../../lib/chessConstants';
 import { useChessGame } from '../../hooks/useChessGame';
 import { useBoardDrawing } from '../../hooks/useBoardDrawing';
 import { useCapturedPieces } from '../../hooks/useCapturedPieces';
 import { db } from '../../lib/db';
 import { generateBoardThumbnail } from '../../lib/utils';
-import type { AppState, PieceColor, PieceSymbol, HistoryEntry } from '../../lib/types';
+import type { AppState, PieceColor, PieceSymbol, HistoryEntry, User } from '../../lib/types';
+import UserPanel from '../result/UserPanel';
 import './SolveView.css';
 
-/**
- * The main analysis and interaction view. It allows the user to play through moves,
- * see captured pieces, navigate the move history, and play against the Stockfish engine.
- */
-const SolveView = ({
-    initialFen, onBack, onHome, analysisCooldown, onNextPuzzle, source, initialHistory, sourceView, initialGameId
-}: {
+interface EngineAnalysisPanelProps {
+    engineThinking: boolean;
+    evaluation: string | null;
+    bestMove: { from: string; to: string } | null;
+    playVsComputer: boolean;
+    togglePlayVsComputer: (enabled: boolean) => void;
+    playerColor: PieceColor;
+    setPlayerColor: (color: PieceColor) => void;
+    getHint: () => void;
+}
+
+const EngineAnalysisPanel = ({
+    engineThinking,
+    evaluation,
+    bestMove,
+    playVsComputer,
+    togglePlayVsComputer,
+    playerColor,
+    setPlayerColor,
+    getHint
+}: EngineAnalysisPanelProps) => {
+    return (
+        <div className="control-section">
+            <h4><EngineIcon /> Engine Analysis</h4>
+            <div className="engine-controls">
+                <div className="engine-control-item">
+                    <label htmlFor="play-vs-cpu-toggle">Play vs. Computer</label>
+                    <div className="toggle-switch">
+                        <input
+                            type="checkbox"
+                            id="play-vs-cpu-toggle"
+                            checked={playVsComputer}
+                            onChange={(e) => togglePlayVsComputer(e.target.checked)}
+                            aria-label="Play against the computer"
+                        />
+                        <span className="slider round"></span>
+                    </div>
+                </div>
+                {playVsComputer && (
+                    <div className="engine-control-item">
+                        <span>Play as:</span>
+                        <div className="turn-selector-inline">
+                            <input
+                                type="radio"
+                                id="play-as-w"
+                                name="playerColor"
+                                value="w"
+                                checked={playerColor === 'w'}
+                                onChange={() => setPlayerColor('w')}
+                            />
+                            <label htmlFor="play-as-w" title="Play as White"><HumanIcon /></label>
+                            <input
+                                type="radio"
+                                id="play-as-b"
+                                name="playerColor"
+                                value="b"
+                                checked={playerColor === 'b'}
+                                onChange={() => setPlayerColor('b')}
+                            />
+                            <label htmlFor="play-as-b" title="Play as Black"><ComputerIcon /></label>
+                        </div>
+                    </div>
+                )}
+                 <button className="btn btn-secondary get-hint-btn" onClick={getHint} disabled={engineThinking || playVsComputer}>
+                    <LightbulbIcon />
+                    {engineThinking ? 'Thinking...' : 'Get Hint'}
+                </button>
+            </div>
+            {(evaluation || (bestMove && !playVsComputer)) && (
+                <div className="engine-output">
+                    <div className="evaluation-display">
+                        <strong>Eval:</strong>
+                        <span>{evaluation ?? '...'}</span>
+                    </div>
+                    {!playVsComputer && bestMove && (
+                        <div className="best-move-display">
+                            <strong>Best Move:</strong>
+                            <span>{`${bestMove.from}${bestMove.to}`}</span>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+interface SolveViewProps {
     initialFen: string;
     onBack: () => void;
     onHome: () => void;
@@ -35,16 +117,32 @@ const SolveView = ({
     initialHistory?: HistoryEntry[] | null;
     initialGameId?: number;
     sourceView: AppState;
-}) => {
+    user: User | null;
+    isLoggedIn: boolean;
+    onLogout: () => void;
+    onAdminPanelClick: () => void;
+    onSavedGamesClick: () => void;
+    onHistoryClick: () => void;
+}
+
+/**
+ * The main analysis and interaction view. It allows the user to play through moves,
+ * see captured pieces, navigate the move history, and play against the Stockfish engine.
+ */
+const SolveView = ({
+    initialFen, onBack, onHome, analysisCooldown, onNextPuzzle, source, initialHistory, sourceView, initialGameId,
+    user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGamesClick, onHistoryClick
+}: SolveViewProps) => {
     const {
         game, currentBoard, history, historyIndex, gameStatus,
         selectedSquare, possibleMoves, promotionMove,
         handleSquareClick, handlePromotion, navigateHistory,
-        isGameOver, isCheckmate, isCheck, turn
+        isGameOver, isCheckmate, isCheck, turn,
+        isFlipped, setIsFlipped, engineThinking, bestMove,
+        evaluation, playVsComputer, playerColor, getHint,
+        togglePlayVsComputer, setPlayerColor, handleReset,
     } = useChessGame(initialFen, initialHistory || undefined);
 
-    // FIX: Moved `isFlipped` state declaration before its use in `useBoardDrawing`.
-    const [isFlipped, setIsFlipped] = useState(false);
     const { boardAreaRef, arrows, drawingArrow, handleBoardPointerDown, handleBoardPointerMove, handleBoardPointerUp } = useBoardDrawing(isFlipped);
     
     const { capturedWhitePieces, capturedBlackPieces, materialAdvantage } = useCapturedPieces(history, historyIndex);
@@ -57,6 +155,15 @@ const SolveView = ({
     const initialFenRef = useRef(initialFen);
     const historyRef = useRef(history);
     const isInitialHistoryRef = useRef(!!initialHistory);
+
+    // FIX: Type 'string' is not assignable to type '{ row: number; col: number; }'.
+    // Convert the selectedSquare (string) to coordinates object for the Chessboard component.
+    const selectedSquareCoords = useMemo(() => {
+        if (!selectedSquare) return null;
+        const file = selectedSquare.charCodeAt(0) - 'a'.charCodeAt(0);
+        const rank = parseInt(selectedSquare.substring(1), 10) - 1;
+        return { row: 7 - rank, col: file };
+    }, [selectedSquare]);
 
     useEffect(() => {
         initialFenRef.current = initialFen;
@@ -124,6 +231,14 @@ const SolveView = ({
         }, 1000);
         return () => clearInterval(timer);
     }, [cooldown]);
+    
+    // Automatically flip the board to the player's color when starting a game vs computer
+    useEffect(() => {
+        if (playVsComputer) {
+            setIsFlipped(playerColor === 'b');
+        }
+    }, [playVsComputer, playerColor, setIsFlipped]);
+
 
     const handleToggleBookmark = async () => {
         try {
@@ -166,7 +281,16 @@ const SolveView = ({
 
     return (
         <div className="card solve-view-card">
-            <div className="solve-view-container">
+            <div className={`solve-view-container ${isLoggedIn ? 'logged-in' : 'guest'}`}>
+                 {isLoggedIn && user && (
+                    <UserPanel
+                        user={user}
+                        onLogout={onLogout}
+                        onAdminPanelClick={onAdminPanelClick}
+                        onSavedGamesClick={onSavedGamesClick}
+                        onHistoryClick={onHistoryClick}
+                    />
+                )}
                 <div className="solve-view-header">
                      <div className="captured-pieces-stack">
                         <CapturedPieces color="b" pieces={capturedBlackPieces} scoreAdvantage={materialAdvantage.blackAdvantage} />
@@ -184,21 +308,17 @@ const SolveView = ({
                     <Chessboard
                         boardState={currentBoard}
                         onSquareClick={(pos) => { handleSquareClick(pos); }}
-                        selectedSquare={selectedSquare}
+                        selectedSquare={selectedSquareCoords}
                         lastMove={lastMove}
                         possibleMoves={possibleMoves}
                         isFlipped={isFlipped}
+                        bestMoveHighlight={playVsComputer ? null : bestMove}
                     />
-                    {boardAreaRef.current && (
-                       <svg className="drawing-overlay">
-                           <defs>
-                               <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7.5" refY="3" orient="auto">
-                                   <polygon points="0 0, 8 3, 0 6" />
-                               </marker>
-                           </defs>
-                           {arrows}
-                           {drawingArrow}
-                       </svg>
+                    {(engineThinking) && (
+                         <div className="engine-thinking-overlay">
+                            <div className="spinner"></div>
+                            <span>Stockfish is thinking...</span>
+                        </div>
                     )}
                     {isGameOver && (
                         <div className="game-over-overlay">
@@ -219,11 +339,21 @@ const SolveView = ({
                     <div className="move-navigation-controls">
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(-1); }} disabled={historyIndex < 0} aria-label="First move" title="Go to the first move"><FirstMoveIcon /></button>
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(historyIndex - 1); }} disabled={historyIndex < 0} aria-label="Previous move" title="Go to previous move"><PrevMoveIcon /></button>
+                        <button className="btn-icon" onClick={handleReset} aria-label="Reset Board" title="Reset Board"><ResetIcon /></button>
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); setIsFlipped(!isFlipped); }} aria-label="Flip board" title="Flip board orientation"><FlipIcon /></button>
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(historyIndex + 1); }} disabled={historyIndex >= history.length - 1} aria-label="Next move" title="Go to next move"><NextMoveIcon /></button>
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(history.length - 1); }} disabled={historyIndex >= history.length - 1} aria-label="Last move" title="Go to the last move"><LastMoveIcon /></button>
                     </div>
-
+                     <EngineAnalysisPanel 
+                        engineThinking={engineThinking}
+                        evaluation={evaluation}
+                        bestMove={bestMove}
+                        playVsComputer={playVsComputer}
+                        togglePlayVsComputer={togglePlayVsComputer}
+                        playerColor={playerColor}
+                        setPlayerColor={setPlayerColor}
+                        getHint={getHint}
+                    />
                     <div className="move-history-wrapper">
                         <MoveHistory history={history} historyIndex={historyIndex} onNavigate={navigateHistory} />
                         <button 

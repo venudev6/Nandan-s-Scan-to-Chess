@@ -45,4 +45,4 @@ self.onmessage = (e) => {
 // Load the Emscripten-generated JavaScript glue code. This will start the
 // WebAssembly module loading and initialization process. The Module object
 // defined above will be used for configuration.
-self.importScripts('stockfish.js');
+self.importScripts('resources/stockfish.js');

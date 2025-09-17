@@ -1,0 +1,114 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+.user-panel {
+    grid-area: user-panel;
+    background-color: #ffffff;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    align-self: start;
+}
+
+.user-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.user-panel-header svg {
+    width: 40px;
+    height: 40px;
+    color: var(--text-muted-color);
+    flex-shrink: 0;
+}
+
+.user-panel-header .user-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.user-panel-header .user-email {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-panel-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem 0;
+    overflow-y: auto;
+}
+.user-panel-nav .user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+    text-align: left;
+    width: 100%;
+    font-size: 0.95rem;
+    color: var(--text-color);
+    transition: background-color 0.2s ease;
+}
+.user-panel-nav .user-menu-item:hover { background-color: #f3f4f6; }
+.user-panel-nav .user-menu-item svg { width: 20px; height: 20px; color: var(--text-muted-color); flex-shrink: 0; }
+.user-panel-nav .user-menu-item span { flex-grow: 1; }
+
+.user-panel-footer {
+    margin-top: auto;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.user-panel-footer .logout-btn { width: 100%; }
+
+@media (max-width: 1024px) {
+    .user-panel {
+        display: none; /* Hide the full sidebar on smaller tablet screens */
+    }
+}
+
+
+@media (max-width: 768px) and (orientation: portrait) {
+    .user-panel {
+        display: flex; /* Re-display for mobile */
+        order: -1;
+        width: 100%;
+        max-width: none;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 1rem;
+        border-radius: 0;
+        border-width: 0 0 1px 0;
+        box-shadow: none;
+        height: auto; /* reset height for mobile */
+        align-self: stretch; /* on mobile it's a row, so stretch it */
+    }
+    .user-panel-nav { display: none; }
+    .user-panel-footer { margin: 0; padding: 0; border: none; }
+    .user-panel-header {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .user-panel-footer .logout-btn { width: auto; padding: 0.5rem 1rem; }
+    .user-panel-footer .logout-btn span { display: none; }
+    .user-panel-footer .logout-btn svg { margin: 0; }
+}

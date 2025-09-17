@@ -1,4 +1,4 @@
-/*
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
@@ -176,16 +176,7 @@
   font-weight: 600;
   color: var(--text-color);
   margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
-
-.control-section h4 svg {
-    width: 20px;
-    height: 20px;
-}
-
 .control-section img {
   width: 100%;
   height: auto;
@@ -255,34 +246,6 @@
   width: 60px;
   height: 60px;
   padding: 0; /* Override default piece padding */
-}
-
-/* Remove Zone: Drop target in the editor to remove a piece from the board. */
-.remove-zone {
-  min-height: 44px;
-  border: 2px dashed var(--dashed-border-color);
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease-in-out;
-  color: var(--text-muted-color);
-  flex-grow: 1; /* Allows it to fill space in the actions row */
-  flex-basis: 0;
-  background-color: #f9fafb;
-}
-/* Highlight when dragging over the remove zone */
-.remove-zone.drag-over, .remove-zone.dragging-active {
-  background-color: #fee2e2;
-  border-color: var(--error-color);
-  color: var(--error-color);
-  transform: scale(1.05);
-  border-style: solid;
-}
-.remove-zone svg {
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
 }
 
 /* Spinner: A simple loading indicator. */
@@ -360,61 +323,4 @@
 /* Accessibility focus style */
 .turn-selector-inline input:focus-visible + label {
     box-shadow: 0 0 0 2px var(--highlight-color);
-}
-
-/* Generic toggle switch styles */
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 50px;
-  height: 28px;
-  flex-shrink: 0;
-}
-
-.toggle-switch input { 
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  transition: .4s;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
-}
-
-input:checked + .slider {
-  background-color: var(--primary-color);
-}
-
-input:focus + .slider {
-  box-shadow: 0 0 1px var(--primary-color);
-}
-
-input:checked + .slider:before {
-  transform: translateX(22px);
-}
-
-.slider.round {
-  border-radius: 34px;
-}
-
-.slider.round:before {
-  border-radius: 50%;
 }
