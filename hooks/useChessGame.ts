@@ -10,59 +10,15 @@ import { fenToBoardState } from '../lib/fenUtils';
 import { FILES, RANKS, INITIAL_FEN } from '../lib/chessConstants';
 import type { BoardState, HistoryEntry, PieceColor, PieceSymbol } from '../lib/types';
 
-// Custom hook to manage the Stockfish Web Worker
-const useStockfish = (onMessage: (message: string) => void) => {
-    const workerRef = useRef<Worker | null>(null);
-
-    useEffect(() => {
-        let isMounted = true;
-        
-        try {
-            // The worker is now served statically from the public directory.
-            const stockfishWorker = new Worker('/workers/stockfish-bootstrap.js');
-            workerRef.current = stockfishWorker;
-    
-            const messageHandler = (e: MessageEvent) => {
-                if (isMounted) {
-                    onMessage(e.data);
-                }
-            };
-            stockfishWorker.addEventListener('message', messageHandler);
-        } catch (e) {
-            console.error("Error initializing Stockfish worker:", e);
-        }
-
-        // Terminate the worker on cleanup
-        return () => {
-            isMounted = false;
-            if (workerRef.current) {
-                workerRef.current.postMessage('quit');
-                workerRef.current.terminate();
-                workerRef.current = null;
-            }
-        };
-    }, [onMessage]);
-
-    const postCommand = useCallback((command: string) => {
-        if (workerRef.current) {
-            workerRef.current.postMessage(command);
-        }
-    }, []);
-
-    return { postCommand };
-};
-
-
 /**
  * A comprehensive hook for managing the state of a chess game.
- * It uses the chess.js library for game logic and a custom Stockfish service for AI analysis.
+ * It uses the chess.js library for game logic.
  * @param initialFen - The FEN string of the starting position.
  * @param initialHistory - An optional array of moves to load into the game.
  */
 export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]) => {
     // useRef to hold the mutable chess.js instance without causing re-renders
     const gameRef = useRef(new Chess());
-    const isInitialHistoryRef = useRef(!!(initialHistory && initialHistory.length > 0));
 
     // Game state
     const [fen, setFen] = useState(initialFen);
@@ -76,13 +32,6 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
     const [possibleMoves, setPossibleMoves] = useState<string[]>([]);
     const [promotionMove, setPromotionMove] = useState<{ from: ChessJSSquare; to: ChessJSSquare; } | null>(null);
     
-    // Engine State
-    const [engineThinking, setEngineThinking] = useState(false);
-    const [bestMove, setBestMove] = useState<{ from: string, to: string } | null>(null);
-    const [evaluation, setEvaluation] = useState<string | null>(null);
-    const [playVsComputer, setPlayVsComputer] = useState(false);
-    const [playerColor, setPlayerColor] = useState<PieceColor>('w');
-
     // Derived state from FEN. This recalculates whenever `fen` changes.
     const { isGameOver, isCheckmate, isDraw, turn, isCheck } = useMemo(() => {
         // Use a temporary instance for checks to avoid mutating the ref's instance
@@ -138,80 +87,13 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
             setSelectedSquare(null);
             setPossibleMoves([]);
             setPromotionMove(null);
-            setBestMove(null); 
-            setEvaluation(null);
         }
 
         return result;
     }, [history, historyIndex, updateGameState]);
     
-    // useRef to hold latest state for use inside the memoized engine message handler
-    const engineStateRef = useRef({ playVsComputer, isGameOver, playerColor, makeMove });
-    useEffect(() => {
-        engineStateRef.current = { playVsComputer, isGameOver, playerColor, makeMove };
-    }, [playVsComputer, isGameOver, playerColor, makeMove]);
-
-    // Memoized engine message handler
-    const handleEngineMessage = useCallback((message: string) => {
-        // The bootstrap worker signals when the WASM is ready.
-        if (message === '__engine_ready__') {
-            postCommand('uci');
-            return;
-        }
-
-        if (message.startsWith('info depth')) {
-            const scoreMatch = message.match(/score (cp|mate) (-?\d+)/);
-            if (scoreMatch) {
-                const type = scoreMatch[1];
-                let value = parseInt(scoreMatch[2], 10);
-                if (gameRef.current.turn() === 'b' && type === 'cp') {
-                   value = -value;
-                }
-                const evalString = type === 'mate' ? `#${value}` : (value / 100).toFixed(2);
-                setEvaluation(evalString);
-            }
-        } else if (message.startsWith('bestmove')) {
-            setEngineThinking(false);
-            const moveStr = message.split(' ')[1];
-            if (moveStr && moveStr !== '(none)') {
-                const from = moveStr.substring(0, 2) as ChessJSSquare;
-                const to = moveStr.substring(2, 4) as ChessJSSquare;
-                
-                // If it's the computer's turn to play, make the move
-                // Use the ref here to get the latest state without creating a new callback.
-                const { playVsComputer, isGameOver, playerColor, makeMove } = engineStateRef.current;
-                if (playVsComputer && !isGameOver && gameRef.current.turn() !== playerColor) {
-                    const moves = gameRef.current.moves({ square: from, verbose: true });
-                    const moveDetails = moves.find(m => m.to === to);
-                    setTimeout(() => {
-                        makeMove({ from, to, promotion: moveDetails?.promotion as ChessJSPieceSymbol | undefined });
-                    }, 500); // Small delay for effect
-                } else {
-                    // Otherwise, just show the hint
-                    setBestMove({ from, to });
-                }
-            }
-        }
-    // FIX: Removed dependencies that would cause re-creation of this handler, leading to re-subscribing the worker listener.
-    // Instead, we use a ref (engineStateRef) to access the latest state from within this stable callback.
-    // We still need postCommand though.
-    }, [/* No dependencies here */]);
-
-    const { postCommand } = useStockfish(handleEngineMessage);
-    
-    // Effect to trigger engine calculation for computer's turn
-    useEffect(() => {
-        if (playVsComputer && !isGameOver && turn !== playerColor && !engineThinking) {
-            setEngineThinking(true);
-            setBestMove(null);
-            postCommand(`position fen ${gameRef.current.fen()}`);
-            postCommand('go movetime 2000');
-        }
-    }, [fen, playVsComputer, isGameOver, turn, playerColor, postCommand, engineThinking]);
-    
     // Effect to initialize the game state from FEN or history
     useEffect(() => {
-        isInitialHistoryRef.current = !!(initialHistory && initialHistory.length > 0);
         try {
             const gameInstance = new Chess();
             gameInstance.load(initialFen);
@@ -231,9 +113,6 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
             updateGameState(gameInstance);
             
             // Reset states for a new/loaded game
-            setPlayVsComputer(false);
-            setBestMove(null);
-            setEvaluation(null);
             setSelectedSquare(null);
             setPossibleMoves([]);
             setPromotionMove(null);
@@ -247,29 +126,6 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
         }
     }, [initialFen, initialHistory, updateGameState]);
 
-
-    const getHint = useCallback(() => {
-        if (engineThinking) return;
-        setEngineThinking(true);
-        postCommand(`position fen ${gameRef.current.fen()}`);
-        postCommand('go movetime 1000');
-    }, [postCommand, engineThinking]);
-
-    const handleTogglePlayVsComputer = useCallback((enabled: boolean) => {
-        setPlayVsComputer(enabled);
-        if (enabled) {
-            if (gameRef.current.turn() !== playerColor && !gameRef.current.isGameOver()) {
-                setEngineThinking(true);
-                postCommand(`position fen ${gameRef.current.fen()}`);
-                postCommand('go movetime 2000');
-            }
-        } else {
-            // If we turn off AI, stop any current thinking
-            postCommand('stop');
-            setEngineThinking(false);
-        }
-    }, [playerColor, postCommand]);
-
     const handleReset = useCallback(() => {
         const gameInstance = new Chess(initialFen);
         gameRef.current = gameInstance;
@@ -279,17 +135,10 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
         setSelectedSquare(null);
         setPossibleMoves([]);
         setPromotionMove(null);
-        setBestMove(null);
-        setEvaluation(null);
-        if (playVsComputer && gameInstance.turn() !== playerColor) {
-            setEngineThinking(true);
-            postCommand(`position fen ${initialFen}`);
-            postCommand('go movetime 2000');
-        }
-    }, [initialFen, playVsComputer, playerColor, postCommand, updateGameState]);
+    }, [initialFen, updateGameState]);
     
     const handleSquareClick = useCallback((pos: { row: number, col: number }) => {
-        if (isGameOver || (playVsComputer && turn !== playerColor)) return;
+        if (isGameOver) return;
 
         const square = (FILES[pos.col] + RANKS[7 - pos.row]) as ChessJSSquare;
         
@@ -328,7 +177,7 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
                 soundManager.play('MOVE');
             }
         }
-    }, [isGameOver, playVsComputer, turn, playerColor, selectedSquare, makeMove]);
+    }, [isGameOver, turn, selectedSquare, makeMove]);
 
     const handlePromotion = useCallback((piece: ChessJSPieceSymbol | null) => {
         if (promotionMove && piece) {
@@ -348,8 +197,6 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
         setHistoryIndex(newIndex);
         setSelectedSquare(null);
         setPossibleMoves([]);
-        setBestMove(null);
-        setEvaluation(null);
     }, [history, initialFen, updateGameState]);
     
     return {
@@ -370,14 +217,6 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
         turn,
         isFlipped,
         setIsFlipped,
-        engineThinking,
-        bestMove,
-        evaluation,
-        playVsComputer,
-        setPlayerColor,
-        playerColor,
-        getHint,
-        togglePlayVsComputer: handleTogglePlayVsComputer,
         handleReset,
     };
 };

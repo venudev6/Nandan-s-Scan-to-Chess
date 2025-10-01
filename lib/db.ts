@@ -2,18 +2,19 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import type { StoredGame, StoredPdf, StoredPdfRecord } from './types';
+import type { StoredGame, StoredPdf, StoredPdfRecord, StoredPdfPuzzles } from './types';
 
 // This file acts as a simple wrapper around the browser's IndexedDB API
 // to provide a more convenient, promise-based way to store and retrieve PDF files.
 
 export const db = {
     name: 'ChessPuzzlesDB',
-    version: 4, // Incremented version to add history store
+    version: 7, // Incremented version for pdfPuzzles store
     stores: {
         pdfs: 'pdfs',
         games: 'games', // This store is for user-bookmarked games
         history: 'history', // This store is for auto-saved games
+        pdfPuzzles: 'pdfPuzzles', // New store for deep scan results
     },
     _db: null as IDBDatabase | null, // Internal property to hold the database connection.
 
@@ -65,6 +66,23 @@ export const db = {
                         db.createObjectStore(this.stores.history, { keyPath: 'id', autoIncrement: true });
                     }
                 }
+                
+                if (oldVersion < 5) {
+                    const gamesStore = transaction.objectStore(this.stores.games);
+                    if (!gamesStore.indexNames.contains('folder')) {
+                        gamesStore.createIndex('folder', 'folder', { unique: false });
+                    }
+                }
+
+                if (oldVersion < 6) {
+                    if (!db.objectStoreNames.contains(this.stores.pdfPuzzles)) {
+                        // Use a composite key for pdfId and page number
+                        db.createObjectStore(this.stores.pdfPuzzles, { keyPath: ['pdfId', 'page'] });
+                    }
+                }
+
+                // Version 7: No schema changes needed for adding syncStatus and driveId to 'pdfs' store.
+                // IndexedDB allows adding properties to objects without altering the schema.
             };
         });
     },
@@ -86,7 +104,7 @@ export const db = {
 
             const store = transaction.objectStore(this.stores.pdfs);
             // The record includes the file object, its name, thumbnail, and initial state.
-            const record = { name: file.name, data: file, thumbnail, lastPage: 1, lastZoom: 1.0, lastAccessed: Date.now() };
+            const record = { name: file.name, data: file, thumbnail, lastPage: 1, lastZoom: 1.0, lastAccessed: Date.now(), syncStatus: 'local' as const };
             const request = store.put(record);
             
             // Capture the new ID on success.
@@ -110,7 +128,7 @@ export const db = {
             
             request.onsuccess = () => {
                 // Map the full results to only include the necessary metadata for the list view.
-                const results = request.result.map(({ id, name, thumbnail, lastAccessed }) => ({ id, name, thumbnail, lastAccessed }));
+                const results = request.result.map(({ id, name, thumbnail, lastAccessed, driveId, syncStatus }) => ({ id, name, thumbnail, lastAccessed, driveId, syncStatus }));
                 // Sort by last accessed descending, treating missing values as oldest.
                 results.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
                 resolve(results);
@@ -178,12 +196,13 @@ export const db = {
     },
 
     /**
-     * Deletes a PDF record from the database.
+     * Deletes a PDF record and its associated puzzles from the database.
      * @param id The ID of the PDF record to delete.
      * @returns A promise that resolves when the deletion is complete.
      */
     async deletePdf(id: number) {
         if (!this._db) await this.init();
+        await this.deletePuzzlesForPdf(id); // Also delete associated puzzles
         return new Promise<void>((resolve, reject) => {
             const transaction = this._db!.transaction(this.stores.pdfs, 'readwrite');
             transaction.oncomplete = () => resolve();
@@ -191,6 +210,38 @@ export const db = {
             
             const store = transaction.objectStore(this.stores.pdfs);
             store.delete(id);
+        });
+    },
+    
+    /**
+     * Updates the Google Drive sync status and file ID of a specific PDF.
+     * @param id The ID of the PDF to update.
+     * @param syncStatus The new sync status.
+     * @param driveId The Google Drive file ID (optional).
+     * @returns A promise that resolves when the update is complete.
+     */
+    async updatePdfDriveInfo(id: number, syncStatus: StoredPdf['syncStatus'], driveId?: string): Promise<void> {
+        if (!this._db) await this.init();
+        return new Promise<void>((resolve, reject) => {
+            const transaction = this._db!.transaction(this.stores.pdfs, 'readwrite');
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = (event) => reject(`Transaction failed to update PDF drive info: ${(event.target as any).error}`);
+
+            const store = transaction.objectStore(this.stores.pdfs);
+            const getRequest = store.get(id);
+            getRequest.onsuccess = () => {
+                const data = getRequest.result;
+                if (data) {
+                    data.syncStatus = syncStatus;
+                    if (driveId !== undefined) {
+                        data.driveId = driveId;
+                    }
+                    store.put(data);
+                } else {
+                    // Don't reject if not found, it might have been deleted.
+                    resolve();
+                }
+            };
         });
     },
     
@@ -250,6 +301,46 @@ export const db = {
     },
 
     /**
+     * Updates the details (name, folder) of a saved game.
+     * @param id The ID of the game to update.
+     * @param name The new name for the game.
+     * @param folder The new folder for the game.
+     * @returns A promise that resolves when the update is complete.
+     */
+    async updateGameDetails(id: number, name: string, folder: string): Promise<void> {
+        if (!this._db) await this.init();
+        return new Promise<void>((resolve, reject) => {
+            const transaction = this._db!.transaction(this.stores.games, 'readwrite');
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = (event) => reject(`Transaction failed to update game details: ${(event.target as any).error}`);
+
+            const store = transaction.objectStore(this.stores.games);
+            const getRequest = store.get(id);
+            getRequest.onsuccess = () => {
+                const data = getRequest.result;
+                if (data) {
+                    data.name = name;
+                    data.folder = folder;
+                    store.put(data);
+                } else {
+                    reject("Game not found to update");
+                }
+            };
+        });
+    },
+
+    /**
+     * Retrieves a unique, sorted list of all folder names from the saved games.
+     * @returns A promise that resolves with an array of folder name strings.
+     */
+    async getAllFolders(): Promise<string[]> {
+        const games = await this.getAllGames();
+        const folderSet = new Set(games.map(game => game.folder));
+        // FIX: Cast Array.from result to string[] to resolve type inference issue.
+        return (Array.from(folderSet) as string[]).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    },
+
+    /**
      * Deletes a game record from the database.
      * @param id The ID of the game to delete.
      * @returns A promise that resolves when the deletion is complete.
@@ -273,7 +364,7 @@ export const db = {
      * @param gameData The game data to save.
      * @returns A promise that resolves with the new record's auto-incremented ID.
      */
-    async saveHistory(gameData: Omit<StoredGame, 'id'>): Promise<number> {
+    async saveHistory(gameData: Omit<StoredGame, 'id' | 'name' | 'folder'>): Promise<number> {
         if (!this._db) await this.init();
         return new Promise<number>((resolve, reject) => {
             const transaction = this._db!.transaction(this.stores.history, 'readwrite');
@@ -335,6 +426,68 @@ export const db = {
             
             const store = transaction.objectStore(this.stores.history);
             store.delete(id);
+        });
+    },
+
+    // --- PDF Puzzle (Deep Scan) Methods ---
+    
+    /**
+     * Saves or updates the list of detected puzzles for a specific PDF page.
+     * @param puzzleData The puzzle data to save.
+     * @returns A promise that resolves when the save is complete.
+     */
+    async savePdfPuzzles(puzzleData: StoredPdfPuzzles): Promise<void> {
+        if (!this._db) await this.init();
+        return new Promise<void>((resolve, reject) => {
+            const transaction = this._db!.transaction(this.stores.pdfPuzzles, 'readwrite');
+            const store = transaction.objectStore(this.stores.pdfPuzzles);
+            const request = store.put(puzzleData);
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(`Transaction failed to save PDF puzzles: ${(event.target as any).error}`);
+        });
+    },
+
+    /**
+     * Retrieves the detected puzzles for a specific PDF page.
+     * @param pdfId The ID of the PDF.
+     * @param page The page number.
+     * @returns A promise that resolves with the StoredPdfPuzzles object, or null if not found.
+     */
+    async getPdfPuzzles(pdfId: number, page: number): Promise<StoredPdfPuzzles | null> {
+        if (!this._db) await this.init();
+        return new Promise<StoredPdfPuzzles | null>((resolve, reject) => {
+            const transaction = this._db!.transaction(this.stores.pdfPuzzles, 'readonly');
+            const store = transaction.objectStore(this.stores.pdfPuzzles);
+            const request = store.get([pdfId, page]);
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject("Failed to get PDF puzzles");
+        });
+    },
+
+    /**
+     * Deletes all puzzle data associated with a specific PDF ID.
+     * This should be called when a PDF is deleted.
+     * @param pdfId The ID of the PDF whose puzzles should be deleted.
+     * @returns A promise that resolves when deletion is complete.
+     */
+    async deletePuzzlesForPdf(pdfId: number): Promise<void> {
+        if (!this._db) await this.init();
+        return new Promise<void>((resolve, reject) => {
+            const transaction = this._db!.transaction(this.stores.pdfPuzzles, 'readwrite');
+            const store = transaction.objectStore(this.stores.pdfPuzzles);
+            const request = store.openCursor();
+            request.onsuccess = (event) => {
+                const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                if (cursor) {
+                    if (cursor.key[0] === pdfId) {
+                        cursor.delete();
+                    }
+                    cursor.continue();
+                } else {
+                    resolve();
+                }
+            };
+            request.onerror = () => reject("Failed to delete puzzles for PDF");
         });
     },
 };

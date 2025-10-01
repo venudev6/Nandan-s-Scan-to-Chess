@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BackIcon, TrashIcon, CopyIcon, CheckIcon, RescanIcon } from '../ui/Icons';
 import { soundManager } from '../../lib/SoundManager';
-import { PIECE_COMPONENTS, PIECE_NAMES } from '../../lib/chessConstants';
+import { PIECE_SETS, PIECE_NAMES } from '../../lib/chessConstants';
 import type { BoardPiece, PieceColor, PieceSymbol, AnalysisDetails } from '../../lib/types';
 import './EditorControls.css';
 
@@ -32,6 +32,7 @@ interface EditorControlsProps {
     isFenValid: boolean;
     onBack: () => void;
     onAnalyze: (fen: string) => void;
+    pieceTheme: string;
 }
 
 const EditorControls = ({
@@ -51,14 +52,16 @@ const EditorControls = ({
     handleFenChange,
     isFenValid,
     onBack,
-    onAnalyze
+    onAnalyze,
+    pieceTheme
 }: EditorControlsProps) => {
 
     const [showCopied, setShowCopied] = useState(false);
     const [openPalette, setOpenPalette] = useState<PieceColor | null>(null);
     const whitePaletteRef = useRef<HTMLDivElement>(null);
     const blackPaletteRef = useRef<HTMLDivElement>(null);
-
+    
+    const PIECE_COMPONENTS = PIECE_SETS[pieceTheme as keyof typeof PIECE_SETS] || PIECE_SETS['merida'];
     const WhitePawn = PIECE_COMPONENTS.w.p;
     const BlackPawn = PIECE_COMPONENTS.b.p;
 
@@ -138,46 +141,44 @@ const EditorControls = ({
                                         <div
                                             key={`${color}_${p}`}
                                             className="piece"
-                                            onPointerDown={(e) => handlePalettePointerDown(pieceData, e)}
                                             title={`Add ${PIECE_NAMES[p]}`}
                                             aria-label={`Add ${PIECE_NAMES[p]}`}
                                         >
-                                             <PieceComponent/>
+                                             <PieceComponent onPointerDown={(e) => handlePalettePointerDown(pieceData, e)} />
                                         </div>
                                     );
                                 })}
                             </div>
                         </div>
                     )})}
-                    <div className={`remove-zone ${ghostPosition || (heldPiece && heldPiece.from !== 'palette') ? 'dragging-active' : ''}`} onClick={handleRemoveClick} data-drop-target="remove" title="Drag a piece here or hold a piece and click to remove it">
+                    {/* FIX: The component was truncated here. The onClick handler, children, and closing tags for the remove zone have been restored. */}
+                    <div className={`remove-zone ${ghostPosition || (heldPiece && heldPiece.from !== 'palette') ? 'dragging-active' : ''}`} onClick={handleRemoveClick} role="button" tabIndex={0} title="Remove held piece from board">
                         <TrashIcon />
+                        <span>Remove Piece</span>
                     </div>
                 </div>
             </div>
-
-            {(sanitizationMessage || (analysisDetails.uncertainSquares && analysisDetails.uncertainSquares.length > 0)) && (
-                <div className="warning-banner">
-                    {sanitizationMessage || "The AI was unsure about the highlighted squares. Please check the piece placement."}
-                </div>
-            )}
-
-
-            <div className="result-actions-wrapper">
-                <div className="control-section">
-                    <h4>FEN String</h4>
-                    <div className="fen-input-wrapper">
-                        <input type="text" value={fen} onChange={handleFenChange} className={`fen-input ${!isFenValid ? 'invalid' : ''}`} />
-                        <button className="btn-icon" onClick={copyFen} title="Copy FEN string to clipboard">
-                            {showCopied ? <CheckIcon/> : <CopyIcon/>}
-                        </button>
+            <div className="control-section fen-section">
+                {sanitizationMessage && (
+                    <div className="sanitization-banner" onClick={() => setSanitizationMessage(null)}>
+                        <strong>Notice:</strong> {sanitizationMessage}
                     </div>
+                )}
+                <h4>Position (FEN)</h4>
+                <div className={`fen-input-wrapper ${!isFenValid ? 'invalid' : ''}`}>
+                    <input type="text" value={fen} onChange={handleFenChange} aria-label="FEN string of the current position" title={fen} />
+                    <button onClick={copyFen} className="btn-icon copy-fen-btn" aria-label="Copy FEN to clipboard" title="Copy FEN">
+                        {showCopied ? <CheckIcon /> : <CopyIcon />}
+                    </button>
                 </div>
-                <div className="result-actions">
-                     <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); onBack(); }} aria-label="Back to Home" title="Go back"><BackIcon /></button>
-                     <button className="btn btn-analyze btn-analyse-large" onClick={() => { soundManager.play('UI_CLICK'); onAnalyze(fen); }} disabled={!isFenValid} title="Analyze this position">
-                        Analyze Position
-                     </button>
-                </div>
+            </div>
+            <div className="control-section result-actions">
+                <button className="btn btn-secondary btn-back" onClick={onBack} title="Go back to the previous screen">
+                    <BackIcon /> Back
+                </button>
+                <button className="btn btn-primary" onClick={() => onAnalyze(fen)} disabled={!isFenValid} title="Analyze this position">
+                    Analyse Position
+                </button>
             </div>
         </div>
     );

@@ -112,12 +112,17 @@
 }
 .result-actions {
     display: flex;
-    justify-content: center;
-    align-items: stretch;
+    flex-direction: row;
     gap: 1rem;
 }
 .result-actions .btn {
+    flex-basis: 0;
+}
+.result-actions .btn.btn-back {
     flex-grow: 1;
+}
+.result-actions .btn-primary {
+    flex-grow: 2;
 }
 .result-actions .btn-analyse-large {
     font-size: 1.1rem;
@@ -148,6 +153,7 @@
     height: 28px;
     z-index: 1;
     pointer-events: none;
+    flex-shrink: 0;
 }
 .chess-turn-toggle .pawn-icon.black-pawn path {
     fill: #6b7280;

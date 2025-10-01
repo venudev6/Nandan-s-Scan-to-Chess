@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `pdfjs-dist/build/pdf.worker.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://aistudiocdn.com/pdfjs-dist@^5.4.149/build/pdf.worker.mjs`;
 
 /**
  * Custom hook to manage loading a PDF document from a File object.

@@ -30,18 +30,28 @@ const CameraView = ({ onCapture, onBack }: {
 
         // An async function to request access to the camera and start the stream.
         const startCamera = async () => {
+            const videoConstraints = {
+                facingMode: "environment"
+            };
+
             try {
-                // Request the user's camera.
-                // `facingMode: "environment"` prefers the rear-facing camera on mobile devices.
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                
-                // If the video element exists, attach the media stream to it.
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                }
+                // First, try to get the rear camera.
+                stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
             } catch (err) {
-                console.error("Error accessing camera:", err);
-                setError("Could not access the camera. Please ensure you've granted permission.");
+                console.warn("Could not get rear camera, trying any camera.", err);
+                // If that fails, try getting any available camera.
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                } catch (finalErr) {
+                    console.error("Error accessing any camera:", finalErr);
+                    setError("Could not access the camera. Please ensure you've granted permission in your browser settings.");
+                    return;
+                }
+            }
+            
+            // If we successfully got a stream, attach it to the video element.
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
             }
         };
 

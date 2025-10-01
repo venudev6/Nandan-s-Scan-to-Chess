@@ -5,14 +5,17 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { soundManager } from '../../lib/SoundManager';
-import { PIECE_COMPONENTS } from '../../lib/chessConstants';
+import { PIECE_SETS } from '../../lib/chessConstants';
 import { useBoardEditor } from '../../hooks/useBoardEditor';
 import { usePieceInteraction } from '../../hooks/usePieceInteraction';
 import type { BoardPiece, PieceColor, AnalysisDetails, User } from '../../lib/types';
 import UserPanel from '../result/UserPanel';
 import EditorBoard from '../result/EditorBoard';
 import EditorControls from '../result/EditorControls';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import './ResultView.css';
+
+type AppSettingsHook = ReturnType<typeof useAppSettings>;
 
 interface ResultViewProps {
     initialFen: string;
@@ -21,6 +24,7 @@ interface ResultViewProps {
     onBack: () => void;
     onAnalyze: (fen: string) => void;
     analysisDetails: AnalysisDetails;
+    scanDuration: number | null;
     onRescan: () => void;
     isRescanning: boolean;
     onRescanComplete: number;
@@ -30,6 +34,9 @@ interface ResultViewProps {
     onAdminPanelClick: () => void;
     onSavedGamesClick: () => void;
     onHistoryClick: () => void;
+    onProfileClick: () => void;
+    onAuthRequired: () => void;
+    appSettings: AppSettingsHook;
 }
 
 
@@ -40,8 +47,8 @@ interface ResultViewProps {
  * pointer-event-based system for all piece interactions.
  */
 const ResultView = ({ 
-    initialFen, initialTurn, originalImage, onBack, onAnalyze, analysisDetails, onRescan, isRescanning, onRescanComplete,
-    user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGamesClick, onHistoryClick
+    initialFen, initialTurn, originalImage, onBack, onAnalyze, analysisDetails, scanDuration, onRescan, isRescanning, onRescanComplete,
+    user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGamesClick, onHistoryClick, onProfileClick, onAuthRequired, appSettings
 }: ResultViewProps) => {
     const {
         board, turn, fen, isFenValid,
@@ -57,6 +64,7 @@ const ResultView = ({
     
     const [showRescanToast, setShowRescanToast] = useState(false);
     const isInitialMount = useRef(true);
+    const PIECE_COMPONENTS = PIECE_SETS[appSettings.pieceTheme as keyof typeof PIECE_SETS] || PIECE_SETS['merida'];
     
     // Effect to show a "Rescan Complete" toast message after a rescan.
     useEffect(() => {
@@ -124,16 +132,20 @@ const ResultView = ({
                 document.body
             )}
             
-            <div className={`result-view-container ${isLoggedIn ? 'logged-in' : 'guest'}`}>
-                 {isLoggedIn && user && (
-                    <UserPanel
-                        user={user}
-                        onLogout={onLogout}
-                        onAdminPanelClick={onAdminPanelClick}
-                        onSavedGamesClick={onSavedGamesClick}
-                        onHistoryClick={onHistoryClick}
-                    />
-                )}
+            <div className="result-view-container">
+                <UserPanel
+                    user={user}
+                    isLoggedIn={isLoggedIn}
+                    onLogout={onLogout}
+                    onAdminPanelClick={onAdminPanelClick}
+                    onSavedGamesClick={onSavedGamesClick}
+                    onHistoryClick={onHistoryClick}
+                    onLoginClick={onAuthRequired}
+                    onProfileClick={onProfileClick}
+                    appSettings={appSettings}
+                    scanDuration={scanDuration}
+                    analysisDetails={analysisDetails}
+                />
                 <EditorBoard
                     board={board}
                     handleSquareClick={handleSquareClick}
@@ -143,6 +155,7 @@ const ResultView = ({
                     analysisDetails={analysisDetails}
                     isRescanning={isRescanning}
                     showRescanToast={showRescanToast}
+                    pieceTheme={appSettings.pieceTheme}
                 />
                 <EditorControls
                     originalImage={originalImage}
@@ -162,6 +175,7 @@ const ResultView = ({
                     isFenValid={isFenValid}
                     onBack={handleBackClick}
                     onAnalyze={handleAnalyzeClick}
+                    pieceTheme={appSettings.pieceTheme}
                 />
             </div>
         </div>

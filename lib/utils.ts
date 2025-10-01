@@ -20,7 +20,12 @@ export const imageToBase64 = (file: File): Promise<string> => {
       if (typeof reader.result === 'string') {
         // The result is a data URL like "data:image/png;base64,iVBORw0KGgo...".
         // We only need the part after the comma for the API.
-        resolve(reader.result.split(',')[1]);
+        const base64 = reader.result.split(',')[1];
+        if (base64) {
+          resolve(base64);
+        } else {
+          reject(new Error('Failed to extract base64 from data URL.'));
+        }
       } else {
         reject(new Error('Failed to read file as base64 string.'));
       }
@@ -29,6 +34,67 @@ export const imageToBase64 = (file: File): Promise<string> => {
     reader.readAsDataURL(file);
   });
 };
+
+/**
+ * Resizes an image on a canvas to a maximum dimension, then exports it as a File object.
+ * @param canvas The source canvas with the cropped image.
+ * @param options Configuration for resizing and export.
+ * @returns A promise that resolves with the new, optimized File object.
+ */
+export const resizeAndExportImage = (
+    canvas: HTMLCanvasElement,
+    options: {
+        maxDimension: number,
+        type: 'image/webp' | 'image/jpeg' | 'image/png',
+        quality: number,
+        fileName: string
+    }
+): Promise<File | null> => {
+    return new Promise((resolve) => {
+        const { maxDimension, type, quality, fileName } = options;
+        const { width: originalWidth, height: originalHeight } = canvas;
+
+        let targetWidth = originalWidth;
+        let targetHeight = originalHeight;
+
+        // Calculate new dimensions while maintaining aspect ratio
+        if (targetWidth > maxDimension || targetHeight > maxDimension) {
+            if (targetWidth > targetHeight) {
+                targetHeight = Math.round((targetHeight / targetWidth) * maxDimension);
+                targetWidth = maxDimension;
+            } else {
+                targetWidth = Math.round((targetWidth / targetHeight) * maxDimension);
+                targetHeight = maxDimension;
+            }
+        }
+
+        const resizeCanvas = document.createElement('canvas');
+        resizeCanvas.width = targetWidth;
+        resizeCanvas.height = targetHeight;
+        const ctx = resizeCanvas.getContext('2d');
+
+        if (!ctx) {
+            resolve(null);
+            return;
+        }
+
+        // Draw the original canvas onto the resizing canvas
+        ctx.drawImage(canvas, 0, 0, originalWidth, originalHeight, 0, 0, targetWidth, targetHeight);
+
+        resizeCanvas.toBlob(
+            (blob) => {
+                if (!blob) {
+                    resolve(null);
+                    return;
+                }
+                resolve(new File([blob], fileName, { type }));
+            },
+            type,
+            quality
+        );
+    });
+};
+
 
 /**
  * Converts a data URL (e.g., from a canvas or FileReader) into a Blob object.
@@ -73,7 +139,7 @@ export const dataUrlToBlob = (dataUrl: string): Blob => {
 export const generatePdfThumbnail = async (file: File, pageNum = 1): Promise<string> => {
     // Set up the web worker for pdf.js to avoid blocking the main thread.
     // The library and worker versions must match.
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `pdfjs-dist/build/pdf.worker.mjs`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://aistudiocdn.com/pdfjs-dist@^5.4.149/build/pdf.worker.mjs`;
     
     // Read the file into an ArrayBuffer.
     const arrayBuffer = await file.arrayBuffer();

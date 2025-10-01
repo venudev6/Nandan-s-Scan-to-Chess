@@ -53,8 +53,8 @@ const HistoryView = ({ onGameSelect, onBack }: HistoryViewProps) => {
         <div className="card admin-panel">
             <div className="admin-header">
                 <h1>Game History</h1>
-                <button className="btn btn-secondary" onClick={onBack} title="Go back to the home screen">
-                    <BackIcon /> Back to Home
+                <button className="btn btn-secondary" onClick={onBack} title="Go back">
+                    <BackIcon /> Back
                 </button>
             </div>
 

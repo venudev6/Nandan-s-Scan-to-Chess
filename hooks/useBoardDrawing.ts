@@ -7,19 +7,17 @@ import type { Square as ChessJSSquare } from 'chess.js';
 import { FILES, RANKS } from '../lib/chessConstants';
 
 type Arrow = { from: ChessJSSquare; to: ChessJSSquare };
-type DrawingState = {
-    fromSquare: ChessJSSquare;
-    toCoords: { x: number; y: number };
-} | null;
 
 /**
  * A custom hook to manage drawing arrows on the chessboard.
  * It encapsulates the state for arrows, the current drawing state,
  * and all the pointer event handlers required for the drawing interaction.
  */
-export const useBoardDrawing = (isFlipped = false) => {
+export const useBoardDrawing = (isFlipped = false, onSquareRightClick?: (square: ChessJSSquare) => void) => {
     const [arrows, setArrows] = useState<Arrow[]>([]);
-    const [drawingArrow, setDrawingArrow] = useState<DrawingState>(null);
+    const drawingStartSquareRef = useRef<ChessJSSquare | null>(null);
+    const pointerStartPos = useRef<{ x: number; y: number } | null>(null);
+    const isDrawingRef = useRef(false);
     const boardAreaRef = useRef<HTMLDivElement>(null);
 
     const getSquareFromMouseEvent = useCallback((e: React.MouseEvent | MouseEvent | React.PointerEvent): ChessJSSquare | null => {
@@ -67,49 +65,49 @@ export const useBoardDrawing = (isFlipped = false) => {
         e.preventDefault();
         const fromSquare = getSquareFromMouseEvent(e);
         if (fromSquare) {
-            const boardRect = boardAreaRef.current?.getBoundingClientRect();
-            if (boardRect) {
-                setDrawingArrow({ fromSquare, toCoords: { x: e.clientX - boardRect.left, y: e.clientY - boardRect.top } });
-            }
+           drawingStartSquareRef.current = fromSquare;
+           pointerStartPos.current = { x: e.clientX, y: e.clientY };
+           isDrawingRef.current = false;
         }
     }, [getSquareFromMouseEvent]);
 
     const handleBoardPointerMove = useCallback((e: React.PointerEvent) => {
-        if (drawingArrow) {
-            e.preventDefault();
-            const boardRect = boardAreaRef.current?.getBoundingClientRect();
-            if (boardRect) {
-                setDrawingArrow(d => d ? { ...d, toCoords: { x: e.clientX - boardRect.left, y: e.clientY - boardRect.top } } : null);
-            }
-        }
-    }, [drawingArrow]);
-
-    const handleBoardPointerUp = useCallback((e: React.PointerEvent) => {
-        if (e.button !== 2) return; // Only right-click
+        if (!drawingStartSquareRef.current || !pointerStartPos.current) return;
+        
         e.preventDefault();
 
-        if (drawingArrow) {
-            const toSquare = getSquareFromMouseEvent(e);
-            if (toSquare && toSquare !== drawingArrow.fromSquare) {
-                setArrows(prev => {
-                    const newArrow = { from: drawingArrow.fromSquare, to: toSquare };
-                    // If arrow exists, remove it. Otherwise, add it.
-                    const existingIndex = prev.findIndex(a => a.from === newArrow.from && a.to === newArrow.to);
-                    if (existingIndex > -1) {
-                        return [...prev.slice(0, existingIndex), ...prev.slice(existingIndex + 1)];
-                    } else {
-                        // Clear other arrows from the same start square before adding a new one.
-                        const otherArrows = prev.filter(a => a.from !== newArrow.from);
-                        return [...otherArrows, newArrow];
-                    }
-                });
-            } else {
-                // If it's just a click (no drag), clear all arrows
-                setArrows([]);
-            }
+        const movedDistance = Math.sqrt(
+            Math.pow(e.clientX - pointerStartPos.current.x, 2) +
+            Math.pow(e.clientY - pointerStartPos.current.y, 2)
+        );
+
+        if (movedDistance > 5) {
+            isDrawingRef.current = true;
         }
-        setDrawingArrow(null);
-    }, [drawingArrow, getSquareFromMouseEvent]);
+    }, []);
+
+    const handleBoardPointerUp = useCallback((e: React.PointerEvent) => {
+        if (e.button !== 2 || !drawingStartSquareRef.current) return;
+        e.preventDefault();
+
+        const toSquare = getSquareFromMouseEvent(e);
+        const fromSquare = drawingStartSquareRef.current;
+        
+        if (isDrawingRef.current) {
+            // It was a drag, draw an arrow
+            if (toSquare && toSquare !== fromSquare) {
+                setArrows(prev => [...prev, { from: fromSquare, to: toSquare }]);
+            }
+        } else {
+            // It was a click, highlight the square
+            onSquareRightClick?.(fromSquare);
+        }
+        
+        // Reset
+        drawingStartSquareRef.current = null;
+        pointerStartPos.current = null;
+        isDrawingRef.current = false;
+    }, [getSquareFromMouseEvent, onSquareRightClick]);
     
     // Convert arrow data to SVG <line> elements. useMemo for performance.
     const renderedArrows = useMemo(() => {
@@ -128,26 +126,11 @@ export const useBoardDrawing = (isFlipped = false) => {
             });
         });
     }, [arrows, getSquareCenterCoords]);
-
-    const renderedDrawingArrow = useMemo(() => {
-        if (!drawingArrow || !boardAreaRef.current) return null;
-        const fromCoords = getSquareCenterCoords(drawingArrow.fromSquare);
-        if (!fromCoords) return null;
-
-        // FIX: Replaced JSX with React.createElement.
-        return React.createElement('line', {
-            x1: fromCoords.x,
-            y1: fromCoords.y,
-            x2: drawingArrow.toCoords.x,
-            y2: drawingArrow.toCoords.y,
-            markerEnd: "url(#arrowhead)"
-        });
-    }, [drawingArrow, getSquareCenterCoords]);
     
     return {
         boardAreaRef,
-        arrows: renderedArrows,
-        drawingArrow: renderedDrawingArrow,
+        renderedArrows,
+        setArrows,
         handleBoardPointerDown,
         handleBoardPointerMove,
         handleBoardPointerUp

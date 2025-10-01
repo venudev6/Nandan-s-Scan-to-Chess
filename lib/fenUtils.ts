@@ -74,63 +74,74 @@ const validateAndFixFen = (fen: string): { fen: string, fixed: boolean, message?
         messages.push('Board data was invalid and was reset to an empty board.');
     }
 
-    const ranks = boardFen.split('/');
-    if (ranks.length === 8) {
-        const fixedRanks = ranks.map((rank, i) => {
-            // FIX: Changed 'const' to 'let' to allow reassignment when truncating the array.
-            let pieces: (string | null)[] = [];
-            for (const char of rank) {
-                const num = parseInt(char, 10);
-                if (!isNaN(num) && num >= 1 && num <= 8) {
-                    for (let k = 0; k < num; k++) {
-                        pieces.push(null);
-                    }
-                } else {
-                    pieces.push(char);
-                }
-            }
-
-            if (pieces.length === 8) {
-                 // Even if the count is 8, the original string might be invalid (e.g. 'r11b4').
-                 // Reconstructing it ensures it's always valid.
-                 let hasConsecutiveNumbers = false;
-                 for(let j = 0; j < rank.length - 1; j++) {
-                    if(!isNaN(parseInt(rank[j], 10)) && !isNaN(parseInt(rank[j+1], 10))) {
-                        hasConsecutiveNumbers = true;
-                        break;
-                    }
-                 }
-                 if (!hasConsecutiveNumbers) return rank;
-            }
-
-            wasFixed = true;
-            messages.push(`Rank ${8 - i} was invalid (had ${pieces.length} squares) and has been corrected.`);
-
-            // Truncate or pad the pieces array
-            while (pieces.length < 8) pieces.push(null);
-            if (pieces.length > 8) pieces = pieces.slice(0, 8);
-
-            // Reconstruct the rank string from the pieces array
-            let newRank = '';
-            let emptyCounter = 0;
-            for (const p of pieces) {
-                if (p === null) {
-                    emptyCounter++;
-                } else {
-                    if (emptyCounter > 0) {
-                        newRank += emptyCounter;
-                        emptyCounter = 0;
-                    }
-                    newRank += p;
-                }
-            }
-            if (emptyCounter > 0) {
-                newRank += emptyCounter;
-            }
-            return newRank;
-        });
-        boardFen = fixedRanks.join('/');
+    let ranks = boardFen.split('/');
+    
+    // Ensure there are exactly 8 ranks.
+    if (ranks.length < 8) {
+        wasFixed = true;
+        messages.push(`FEN had only ${ranks.length} ranks; missing ranks were added as empty.`);
+        while (ranks.length < 8) {
+            ranks.push('8');
+        }
+    } else if (ranks.length > 8) {
+        wasFixed = true;
+        messages.push(`FEN had ${ranks.length} ranks; extra ranks were removed.`);
+        ranks = ranks.slice(0, 8);
     }
+    
+    const fixedRanks = ranks.map((rank, i) => {
+        let pieces: (string | null)[] = [];
+        for (const char of rank) {
+            const num = parseInt(char, 10);
+            if (!isNaN(num) && num >= 1 && num <= 8) {
+                for (let k = 0; k < num; k++) {
+                    pieces.push(null);
+                }
+            } else {
+                pieces.push(char);
+            }
+        }
+
+        if (pieces.length === 8) {
+             // Even if the count is 8, the original string might be invalid (e.g. 'r11b4').
+             // Reconstructing it ensures it's always valid.
+             let hasConsecutiveNumbers = false;
+             for(let j = 0; j < rank.length - 1; j++) {
+                if(!isNaN(parseInt(rank[j], 10)) && !isNaN(parseInt(rank[j+1], 10))) {
+                    hasConsecutiveNumbers = true;
+                    break;
+                }
+             }
+             if (!hasConsecutiveNumbers) return rank;
+        }
+
+        wasFixed = true;
+        messages.push(`Rank ${8 - i} was invalid (had ${pieces.length} squares) and has been corrected.`);
+
+        // Truncate or pad the pieces array
+        while (pieces.length < 8) pieces.push(null);
+        if (pieces.length > 8) pieces = pieces.slice(0, 8);
+
+        // Reconstruct the rank string from the pieces array
+        let newRank = '';
+        let emptyCounter = 0;
+        for (const p of pieces) {
+            if (p === null) {
+                emptyCounter++;
+            } else {
+                if (emptyCounter > 0) {
+                    newRank += emptyCounter;
+                    emptyCounter = 0;
+                }
+                newRank += p;
+            }
+        }
+        if (emptyCounter > 0) {
+            newRank += emptyCounter;
+        }
+        return newRank;
+    });
+    boardFen = fixedRanks.join('/');
 
     const pieceCounts = (board: string, piece: string) => (board.match(new RegExp(piece, 'g')) || []).length;
 
@@ -188,4 +199,36 @@ export const fenToBoardState = (fen: string): { board: BoardState; turn: PieceCo
         }
         throw e;
     }
+};
+
+/**
+ * Converts an 8x8 array of piece characters into the piece placement part of a FEN string.
+ * @param board The 8x8 array, where inner arrays are ranks 8 through 1.
+ *              Uses standard piece characters ('P', 'n', etc.) and an empty string for empty squares.
+ * @returns The FEN piece placement string (e.g., "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR").
+ */
+export const arrayToFen = (board: (string | null)[][]): string => {
+  return board.map(row => {
+    if (!row || !Array.isArray(row) || row.length !== 8) {
+      console.error(`Invalid board array format for rank:`, row);
+      return '8';
+    }
+    let empty = 0;
+    let rankFen = '';
+    for (const piece of row) {
+      if (piece === null || piece === "") {
+        empty++;
+      } else {
+        if (empty > 0) {
+          rankFen += empty;
+          empty = 0;
+        }
+        rankFen += piece;
+      }
+    }
+    if (empty > 0) {
+      rankFen += empty;
+    }
+    return rankFen;
+  }).join('/');
 };

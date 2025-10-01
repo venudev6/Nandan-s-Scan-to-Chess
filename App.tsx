@@ -21,27 +21,14 @@ import PendingConfirmationView from './components/views/PendingConfirmationView'
 import { authService } from './lib/authService';
 import { AppState } from './lib/types';
 import { soundManager } from './lib/SoundManager';
-
-/**
- * The main component of the application. It acts as a state machine,
- * managing the current view and passing data between different parts of the app.
- * It is now wrapped with an AuthProvider to manage user sessions.
- */
-const App = () => {
-    return (
-        <AuthProvider>
-            <AppContent />
-        </AuthProvider>
-    );
-};
+import ProfileView from './components/views/ProfileView';
 
 const AppContent = () => {
-    const { user, isLoggedIn, isLoading } = useAuth();
+    const { user, isLoggedIn, isLoading, authFlowVisible, requestAuthFlow, hideAuthFlow } = useAuth();
     const [authScreen, setAuthScreen] = useState<'login' | 'register' | 'pending_confirmation'>('login');
-    const [isAdminView, setIsAdminView] = useState(false);
-    const [showAuthFlow, setShowAuthFlow] = useState(false);
     const [pendingEmail, setPendingEmail] = useState<string | null>(null);
     const [appState, setAppState] = useState<AppState>('initial');
+    const [previousAppState, setPreviousAppState] = useState<AppState>('initial');
 
      // --- CUSTOM HOOKS ---
     const appSettings = useAppSettings();
@@ -56,9 +43,17 @@ const AppContent = () => {
         document.body.className = `app-state-${appState}`;
         if (isLoggedIn) {
             document.body.classList.add('logged-in');
+        } else {
+            document.body.classList.remove('logged-in');
         }
-        return () => { document.body.className = ''; };
     }, [appState, isLoggedIn]);
+
+    const handleSetAppState = (newState: AppState) => {
+        if (newState !== appState) {
+            setPreviousAppState(appState);
+            setAppState(newState);
+        }
+    };
 
     /**
      * This function is passed down to the main app. It's called when a guest
@@ -96,17 +91,22 @@ const AppContent = () => {
 
     const handleAuthRequired = () => {
         setAuthScreen('login');
-        setShowAuthFlow(true);
+        requestAuthFlow();
     };
 
     const handleSavedGamesClick = () => {
         soundManager.play('UI_CLICK');
-        setAppState('savedGames');
+        handleSetAppState('savedGames');
     };
     
     const handleHistoryClick = () => {
         soundManager.play('UI_CLICK');
-        setAppState('history');
+        handleSetAppState('history');
+    };
+
+    const handleProfileClick = () => {
+        soundManager.play('UI_CLICK');
+        handleSetAppState('profile');
     };
 
     // A guest's trial is over once they have completed 10 or more scans.
@@ -121,49 +121,68 @@ const AppContent = () => {
                 </div>
             );
         }
-        
-        // Admins can access a special view.
-        if (isLoggedIn && user?.role === 'admin' && isAdminView) {
-            return <AdminView onBack={() => setIsAdminView(false)} />;
+
+        // The Admin view replaces the main app flow entirely.
+        if (isLoggedIn && user?.role === 'admin' && appState === 'admin') {
+            return <AdminView onBack={() => handleSetAppState(previousAppState)} />;
         }
         
-        // If the auth flow should be shown (for a guest whose trial is over or user clicked login), show it.
-        if (showAuthFlow && !isLoggedIn) {
-             switch(authScreen) {
+        // Determine which auth screen to show in the overlay, if any.
+        let authFlowComponent = null;
+        if (authFlowVisible && !isLoggedIn) {
+            switch(authScreen) {
                 case 'login':
-                    return <LoginView 
-                                onRegisterClick={() => setAuthScreen('register')} 
-                                onCancel={() => setShowAuthFlow(false)}
-                            />;
+                    authFlowComponent = <LoginView 
+                                        onRegisterClick={() => setAuthScreen('register')} 
+                                        onCancel={hideAuthFlow}
+                                    />;
+                    break;
                 case 'register':
-                    return <RegisterView 
-                                onLoginClick={() => setAuthScreen('login')}
-                                onCancel={() => setShowAuthFlow(false)}
-                                onRegisterSuccess={handleRegisterSuccess}
-                            />;
+                    authFlowComponent = <RegisterView 
+                                        onLoginClick={() => setAuthScreen('login')}
+                                        onCancel={hideAuthFlow}
+                                        onRegisterSuccess={handleRegisterSuccess}
+                                    />;
+                    break;
                 case 'pending_confirmation':
-                    return <PendingConfirmationView 
-                                email={pendingEmail!}
-                                onConfirm={handleConfirmEmail}
-                                onBackToLogin={() => setAuthScreen('login')}
-                            />;
+                    authFlowComponent = <PendingConfirmationView 
+                                        email={pendingEmail!}
+                                        onConfirm={handleConfirmEmail}
+                                        onBackToLogin={() => setAuthScreen('login')}
+                                    />;
+                    break;
                 default:
-                    return <LoginView onRegisterClick={() => setAuthScreen('register')} onCancel={() => setShowAuthFlow(false)} />;
-             }
+                    authFlowComponent = <LoginView onRegisterClick={() => setAuthScreen('register')} onCancel={hideAuthFlow} />;
+            }
         }
 
-        // Otherwise, render the main protected application.
-        return <ProtectedApp 
-                    onScanComplete={handleScanComplete} 
-                    isGuestPastTrial={isGuestPastTrial}
-                    onAuthRequired={handleAuthRequired}
-                    appState={appState}
-                    setAppState={setAppState}
-                    appSettings={appSettings}
-                    onAdminPanelClick={() => setIsAdminView(true)}
-                    onSavedGamesClick={handleSavedGamesClick}
-                    onHistoryClick={handleHistoryClick}
-                />;
+        // Always render the main app, and render the auth flow as an overlay if needed.
+        const mainApp = (
+            <ProtectedApp 
+                onScanComplete={handleScanComplete} 
+                isGuestPastTrial={isGuestPastTrial}
+                onAuthRequired={handleAuthRequired}
+                appState={appState}
+                setAppState={handleSetAppState}
+                previousAppState={previousAppState}
+                appSettings={appSettings}
+                onAdminPanelClick={() => handleSetAppState('admin')}
+                onSavedGamesClick={handleSavedGamesClick}
+                onHistoryClick={handleHistoryClick}
+                onProfileClick={handleProfileClick}
+            />
+        );
+
+        return (
+            <>
+                {mainApp}
+                {authFlowComponent && (
+                    <div className="auth-flow-overlay">
+                        {authFlowComponent}
+                    </div>
+                )}
+            </>
+        );
     };
     
     return (
@@ -172,6 +191,19 @@ const AppContent = () => {
                 {renderContent()}
             </main>
         </div>
+    );
+};
+
+/**
+ * The main component of the application. It acts as a state machine,
+ * managing the current view and passing data between different parts of the app.
+ * It is now wrapped with an AuthProvider to manage user sessions.
+ */
+const App = () => {
+    return (
+        <AuthProvider>
+            <AppContent />
+        </AuthProvider>
     );
 };
 

@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactCrop, { type Crop } from 'react-image-crop';
 import { BackIcon } from '../ui/Icons';
+import { resizeAndExportImage } from '../../lib/utils';
 import './ImagePreview.css';
 
 /**
@@ -83,7 +84,7 @@ const ImagePreview = ({ imageFile, onConfirm, onBack }: {
         if (!ctx) return null;
 
         // The source x/y coordinates on the original image.
-        const cropX = completedCrop.x * scaleY;
+        const cropX = completedCrop.x * scaleX;
         const cropY = completedCrop.y * scaleY;
 
         // Use drawImage to clip the original image and draw it onto the canvas.
@@ -99,15 +100,11 @@ const ImagePreview = ({ imageFile, onConfirm, onBack }: {
             canvas.height // destination height
         );
         
-        // Convert the canvas to a Blob and then wrap it in a File object.
-        return new Promise((resolve) => {
-            canvas.toBlob(blob => {
-                if (!blob) {
-                    resolve(null);
-                    return;
-                }
-                resolve(new File([blob], "cropped.png", { type: "image/png" }));
-            }, "image/png");
+        return resizeAndExportImage(canvas, {
+            maxDimension: 1024,
+            type: 'image/webp',
+            quality: 0.7,
+            fileName: 'cropped.webp'
         });
     };
 

@@ -5,10 +5,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
     UserCircleIcon, LogoutIcon, SettingsIcon, BoardIcon, GameplayIcon, 
-    AccountIcon, ChevronRightIcon, HistoryIcon, BookmarkFilledIcon, BackIcon
+    AccountIcon, ChevronRightIcon, HistoryIcon, BookmarkIcon, BackIcon, ExternalLinkIcon
 } from './Icons';
 import type { User } from '../../lib/types';
 import { useAppSettings } from '../../hooks/useAppSettings';
+import { PIECE_SETS, PIECE_SET_NAMES, PieceTheme } from '../../lib/chessConstants';
+import { PieceSetSelectorModal } from './PieceSetSelectorModal';
 import './UserMenu.css';
 
 type AppSettings = ReturnType<typeof useAppSettings>;
@@ -19,12 +21,14 @@ interface UserMenuProps {
     onAdminPanelClick: () => void;
     onSavedGamesClick: () => void;
     onHistoryClick: () => void;
+    onProfileClick: () => void;
     appSettings: AppSettings;
 }
 
-const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHistoryClick, appSettings }: UserMenuProps) => {
+const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHistoryClick, onProfileClick, appSettings }: UserMenuProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [panel, setPanel] = useState<'main' | 'settings'>('main');
+    const [isPieceSetModalOpen, setIsPieceSetModalOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -39,7 +43,9 @@ const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHist
 
     const handleMenuToggle = () => {
         setIsOpen(!isOpen);
-        setPanel('main'); // Reset to main panel when opening
+        if (!isOpen) {
+            setPanel('main'); // Reset to main panel when opening
+        }
     };
     
     const handleLogoutClick = () => {
@@ -47,23 +53,24 @@ const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHist
         setIsOpen(false);
     };
 
+    const handleProfileClick = () => {
+        onProfileClick();
+        setIsOpen(false);
+    };
+
     const MainPanel = () => (
         <>
-            <div className="user-menu-header">
+            <button className="user-menu-header" onClick={handleProfileClick} title="View your profile">
+                <div className="user-avatar"><UserCircleIcon /></div>
                 <div className="user-info">
-                    <span className="user-email">{user.email}</span>
+                    <span className="user-name">{user.name || user.email}</span>
                     <span className={`role-badge role-${user.role}`}>{user.role}</span>
                 </div>
-            </div>
+            </button>
+            <div className="user-menu-separator"></div>
             <div className="user-menu-list">
-                 {user.role === 'admin' && (
-                    <button className="user-menu-item" onClick={() => { onAdminPanelClick(); setIsOpen(false); }} title="Go to the Admin Panel">
-                        <AccountIcon/>
-                        <span>Admin Panel</span>
-                    </button>
-                )}
                 <button className="user-menu-item" onClick={() => { onSavedGamesClick(); setIsOpen(false); }} title="View your saved games">
-                    <BookmarkFilledIcon/>
+                    <BookmarkIcon/>
                     <span>Saved Games</span>
                 </button>
                 <button className="user-menu-item" onClick={() => { onHistoryClick(); setIsOpen(false); }} title="View your game history">
@@ -75,6 +82,13 @@ const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHist
                     <span>Board Settings</span>
                     <ChevronRightIcon />
                 </button>
+                 {user.role === 'admin' && (
+                    <button className="user-menu-item" onClick={() => { onAdminPanelClick(); setIsOpen(false); }} title="Go to the Admin Panel">
+                        <AccountIcon/>
+                        <span>Admin Panel</span>
+                    </button>
+                )}
+                <div className="user-menu-separator"></div>
                  <button className="user-menu-item" onClick={handleLogoutClick} title="Log out">
                     <LogoutIcon />
                     <span>Logout</span>
@@ -115,26 +129,26 @@ const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHist
                         ))}
                     </div>
                 </div>
-                <div className="setting-item">
-                    <div className="setting-label">
-                        <GameplayIcon />
-                        <span>Gameplay</span>
-                    </div>
-                    <div className="setting-sub-item">
-                        <label htmlFor="sound-toggle">Enable Sound Effects</label>
-                        <div className="toggle-switch" title="Enable or disable sound effects">
-                            <input
-                                type="checkbox"
-                                id="sound-toggle"
-                                checked={appSettings.soundEnabled}
-                                onChange={(e) => appSettings.handleSoundToggle(e.target.checked)}
-                            />
-                            <span className="slider round"></span>
+                 <div className="setting-item">
+                    <button className="setting-item-button" onClick={() => setIsPieceSetModalOpen(true)}>
+                        <div className="setting-label">
+                            <GameplayIcon />
+                            <span>Piece Set</span>
                         </div>
+                        <div className="setting-value">
+                            <span>{appSettings.pieceTheme.charAt(0).toUpperCase() + appSettings.pieceTheme.slice(1)}</span>
+                            <ChevronRightIcon />
+                        </div>
+                    </button>
+                </div>
+                <div className="setting-item">
+                     <div className="setting-label">
+                        <ExternalLinkIcon />
+                        <span>External Analysis</span>
                     </div>
                     <div className="setting-sub-item">
                         <label htmlFor="cooldown-slider">
-                           Analysis Cooldown: <strong>{Math.floor(appSettings.analysisCooldown / 60)} min</strong>
+                           Cooldown: <strong>{Math.floor(appSettings.analysisCooldown / 60)} min</strong>
                         </label>
                          <input
                             type="range"
@@ -163,6 +177,11 @@ const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHist
                     {panel === 'main' ? <MainPanel /> : <SettingsPanel />}
                 </div>
             )}
+            <PieceSetSelectorModal
+                isOpen={isPieceSetModalOpen}
+                onClose={() => setIsPieceSetModalOpen(false)}
+                appSettings={appSettings}
+            />
         </div>
     );
 };

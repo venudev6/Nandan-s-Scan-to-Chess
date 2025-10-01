@@ -3,337 +3,177 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-/* Solve View Panels */
-.board-area {
-    grid-area: board;
-    position: relative; /* For overlay positioning */
-    display: flex;
-    justify-content: center;
-    align-items: center; /* Vertically align board to the center */
-    min-height: 0;
-    min-width: 0;
-}
-.solve-view-header {
-    grid-area: captured;
-    padding: 0;
-}
-.solve-controls {
-    grid-area: controls;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem; /* Use a consistent gap */
-    overflow-y: auto;
-    min-height: 0;
-    padding-bottom: 0.5rem;
-}
-.captured-pieces-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-.move-navigation-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0;
-    width: 100%;
-}
-.move-navigation-controls .btn-icon {
-    flex: 1; /* Make buttons distribute space evenly */
+/* ====== BOARD AREA ====== */
+.board-area{
+  grid-area: board-panel;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;             /* prevent any child overflow */
 }
 
-.engine-thinking-overlay {
-    position: absolute;
-    inset: 0;
-    background-color: rgba(255, 255, 255, 0.6);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 25; /* Higher than other board elements */
-    border-radius: 4px;
-    gap: 1rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-color);
+.board-area .board-wrapper{
+  width: var(--board-size);
+  height: var(--board-size);
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
-.engine-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
+/* The chessboard element itself */
+.board-area .chessboard-container{
+  width: 100%;
+  height: 100%;
+  max-width: var(--board-size);
+  max-height: var(--board-size);
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  box-sizing: border-box;       /* include borders in size */
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
-.engine-control-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9rem;
+/* ====== RIGHT CONTROLS COLUMN ====== */
+.solve-controls{
+  grid-area: controls-panel;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem; /* Add vertical gap between control sections */
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: auto;               /* internal scroll if needed, not page */
 }
 
-.engine-control-item .turn-selector-inline {
-    flex-grow: 0;
-    min-width: 0;
-    gap: 0.25rem;
+/* ====== LEFT USER PANEL ====== */
+.user-panel{
+  grid-area: user-panel;
+  align-self: start;            /* do not stretch */
+  height: auto;                 /* only as tall as content */
+  margin: 0;
+  padding: 0;
 }
 
-.engine-control-item .turn-selector-inline label {
-    width: 50px;
-    height: 36px;
-    padding: 0.25rem;
-}
-.engine-control-item .turn-selector-inline label svg {
-    width: 24px;
-    height: 24px;
-}
+/* ====== HEADER, CARDS, ETC. ====== */
+.solve-view-header { padding: 0; margin: 0; min-height: auto; }
+.captured-pieces-stack { display: flex; flex-direction: column; gap: 0.5rem; }
 
-.engine-controls .get-hint-btn {
-    width: 100%;
+/* Overlay drawings on the board */
+.drawing-overlay{
+  position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: visible;
 }
+.drawing-overlay line{ stroke: rgba(255,165,0,.7); stroke-width: 24px; stroke-linecap: butt; }
+.drawing-overlay polygon{ fill: rgba(255,165,0,.7); }
 
-.engine-output {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--border-color);
-    font-size: 0.9rem;
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
+/* Game over overlay */
+.game-over-overlay{
+  position: absolute; inset: 0; background-color: rgba(255,255,255,.8);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1rem; z-index: 20; border-radius: 4px;
 }
-.evaluation-display, .best-move-display {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    color: var(--text-muted-color);
-}
-.evaluation-display span, .best-move-display span {
-    font-weight: 600;
-    font-family: monospace;
-    font-size: 1rem;
-    color: var(--text-color);
-}
+.game-over-overlay h2{ font-size: 2rem; font-weight: 700; color: var(--text-color); }
 
-.solve-main-actions {
-    margin-top: auto; /* Push to bottom */
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+/* ====== MOVE NAV + ACTIONS ====== */
+.move-navigation-controls{
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 0.5rem; width: 100%;
 }
-.solve-main-actions .btn-analyze, .solve-main-actions .btn-dark {
-    text-align: center;
-    font-size: 0.9rem;
-    padding: 0.6rem 1rem;
-    width: 100%; /* Make analysis buttons full width */
+.move-navigation-controls .btn-icon{ flex: 1 1 44px; min-width: 44px; }
+
+.solve-main-actions{
+  margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color);
+  display: flex; flex-direction: column; gap: 0.75rem;
 }
+.solve-main-actions .btn-analyze,
+.solve-main-actions .btn-dark{ text-align: center; font-size: 0.9rem; padding: 0.6rem 1rem; width: 100%; }
 .solve-main-actions .result-actions {
     display: flex;
     gap: 0.75rem;
-    width: 100%; /* Make button group full width */
-}
-.solve-main-actions .result-actions .btn-secondary { /* Home */
-    flex: 1 1 0%;
-}
-.solve-main-actions .result-actions .btn-analyze { /* Next Puzzle */
-    flex: 2 1 0%;
-}
-.solve-main-actions .result-actions .btn-icon {
-    flex: 0 0 44px; /* Fixed width for icon button */
-}
-.drawing-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 5;
 }
-.drawing-overlay line {
-    stroke: rgba(211, 45, 39, 0.8);
-    stroke-width: 8;
-    stroke-linecap: round;
+.solve-main-actions .result-actions .btn.btn-back {
+    flex: 0 0 auto;
 }
-.drawing-overlay polygon {
-    fill: rgba(211, 45, 39, 0.8);
-}
-.game-over-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(255, 255, 255, 0.8);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    z-index: 20;
-    border-radius: 4px;
-}
-.game-over-overlay h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--text-color);
+.solve-main-actions .result-actions .btn-secondary:not(.btn-back),
+.solve-main-actions .result-actions .btn-analyze {
+    flex: 1 1 0;
 }
 
-.solve-view-container {
-    display: grid;
-    align-items: stretch;
-    width: 100%;
-    flex-grow: 1;
-    min-height: 0;
-    justify-content: center;
-    max-width: 1400px;
-    margin: 0 auto;
-    gap: 12px;
+/* ====== MOVE HISTORY CARD ====== */
+.move-history-wrapper{
+  position: relative; display: flex; flex-direction: column; flex-grow: 1; min-height: 0;
+  background: #ffffff; padding: 1rem; padding-top: 2.75rem;
+  border-radius: 0.75rem; border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.move-history-wrapper::before{
+  content: "Move History"; position: absolute; top: 1rem; left: 1rem;
+  font-size: 1rem; font-weight: 600; color: var(--text-color);
 }
 
-/* Guest view: 2 columns */
-.solve-view-container.guest {
-    grid-template-columns: 1fr 280px;
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas:
-        "board captured"
-        "board controls";
+.save-game-btn{
+  position: absolute; top: 0.75rem; right: 0.75rem; width: 36px; height: 36px; z-index: 10;
+}
+.save-game-btn svg{ width: 20px; height: 20px; }
+.save-game-btn.bookmarked{ background-color: var(--primary-color); color: #fff; border-color: var(--primary-hover); }
+.save-game-btn.bookmarked:hover{ background-color: var(--primary-hover); }
+
+/* ====== BOOKMARK MODAL ====== */
+.bookmark-modal-overlay{ position: fixed; inset: 0; z-index: 1000; background-color: transparent; }
+.bookmark-modal{
+  width: 300px; background: #fff; border-radius: 0.75rem; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  border: 1px solid var(--border-color); padding: 1rem; z-index: 1001;
+  display: flex; flex-direction: column; gap: 1rem; animation: slide-down-fade 0.2s ease-out;
+}
+@keyframes slide-down-fade{ from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:translateY(0);} }
+.bookmark-modal-header{ display: flex; justify-content: space-between; align-items: center; }
+.bookmark-modal-header h3{ font-size: 1.1rem; font-weight: 600; margin: 0; }
+.bookmark-modal-header .close-btn{ background: none; border: none; cursor: pointer; color: var(--text-muted-color); padding: 0.25rem; }
+.bookmark-modal-header .close-btn:hover{ color: var(--text-color); }
+.bookmark-form-group{ display: flex; flex-direction: column; gap: 0.5rem; }
+.bookmark-form-group label{ font-size: 0.875rem; font-weight: 500; color: var(--text-muted-color); }
+.bookmark-form-group input,
+.bookmark-form-group select{
+  width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border-color);
+  border-radius: 0.375rem; font-size: 1rem;
+}
+.bookmark-form-group input:focus,
+.bookmark-form-group select:focus{ outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+.bookmark-modal-actions{ display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+.bookmark-modal-actions .btn{ padding: 0.5rem 1rem; font-size: 0.9rem; }
+.bookmark-modal-actions .btn-remove{ background-color: #e5e7eb; color: #374151; margin-right: auto; }
+.bookmark-modal-actions .btn-remove:hover{ background-color: #d1d5db; }
+
+/* ====== RESPONSIVE ====== */
+@media (max-width: 768px) and (orientation: landscape){
+  .solve-view-card{ padding: 12px; }
 }
 
-/* Logged-in view: 3 columns */
-.solve-view-container.logged-in {
-    grid-template-columns: 240px 1fr 280px;
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas:
-        "user-panel board captured"
-        "user-panel board controls";
+/* Save toast */
+.save-toast{
+  position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+  background-color: var(--text-color); color: #fff; padding: 0.75rem 1.25rem;
+  border-radius: 9999px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;
+  display: flex; align-items: center; gap: 0.5rem; font-weight: 500;
+  animation: fade-in-out-toast 2.5s ease-in-out forwards;
 }
-
-/* Save confirmation toast */
-.save-toast {
-    position: fixed;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--text-color);
-    color: white;
-    padding: 0.75rem 1.25rem;
-    border-radius: 9999px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 500;
-    animation: fade-in-out-toast 2.5s ease-in-out forwards;
-}
-.save-toast svg {
-    width: 20px;
-    height: 20px;
-    color: var(--success-color);
-}
-@keyframes fade-in-out-toast {
-    0% { opacity: 0; transform: translate(-50%, 20px); }
-    15% { opacity: 1; transform: translate(-50%, 0); }
-    85% { opacity: 1; transform: translate(-50%, 0); }
-    100% { opacity: 0; transform: translate(-50%, -10px); }
-}
-
-.move-history-wrapper {
-    position: relative; /* For positioning the bookmark button */
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1; /* Take up available space */
-    min-height: 0; /* Crucial for child with overflow-y to scroll */
-
-    /* Styles for the "outline" from user request */
-    background: #ffffff;
-    padding: 1rem;
-    padding-top: 2.75rem; /* Room for title */
-    border-radius: 0.75rem;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-}
-.move-history-wrapper::before {
-    content: "Move History";
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-color);
-}
-.save-game-btn {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    width: 36px;
-    height: 36px;
-}
-.save-game-btn svg {
-    width: 20px;
-    height: 20px;
-}
-
-.save-game-btn.bookmarked {
-    background-color: var(--primary-color);
-    color: white;
-    border-color: var(--primary-hover);
-}
-
-.save-game-btn.bookmarked:hover {
-    background-color: var(--primary-hover);
-}
-
-
-@media (max-width: 768px) and (orientation: portrait) {
-    .solve-view-container {
-        max-width: 100%;
-        margin: 0;
-        gap: 0;
-        justify-content: initial;
-        height: 100%;
-    }
-
-    .solve-view-container.guest {
-        grid-template-columns: 1fr; /* Single column */
-        grid-template-rows: auto auto 1fr; /* Captured, Board, Controls */
-        grid-template-areas:
-            "captured"
-            "board"
-            "controls";
-    }
-    
-    .solve-view-container.logged-in {
-        grid-template-columns: 1fr; /* Single column */
-        grid-template-rows: auto auto auto 1fr; /* User Panel, Captured, Board, Controls */
-        grid-template-areas:
-            "user-panel"
-            "captured"
-            "board"
-            "controls";
-    }
-
-    .solve-view-header {
-        padding: 0.75rem;
-    }
-
-    .board-area {
-        padding: 1rem;
-        background-color: #ffffff;
-    }
-
-    .solve-controls {
-        padding: 1rem;
-        background-color: var(--background-color);
-        border-top: 1px solid var(--border-color);
-        overflow-y: auto; /* Allow content to flow */
-        flex-shrink: 0; /* Don't shrink the controls panel */
-    }
-
-    .solve-main-actions {
-        margin-top: 0.5rem;
-    }
+.save-toast svg{ width: 20px; height: 20px; color: var(--success-color); }
+@keyframes fade-in-out-toast{
+  0%{opacity:0; transform:translate(-50%, 20px);}
+  15%{opacity:1; transform:translate(-50%, 0);}
+  85%{opacity:1; transform:translate(-50%, 0);}
+  100%{opacity:0; transform:translate(-50%, -10px);}
 }

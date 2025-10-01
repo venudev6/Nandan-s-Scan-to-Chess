@@ -5,43 +5,102 @@
 
 /* SHARED VIEW LAYOUT STYLES */
 
-/* Result & Solve View Layout */
 .result-view-card, .solve-view-card {
-    padding: 1.5rem;
+    padding: 24px;
     display: flex;
     flex-direction: column;
     flex-grow: 1; /* Make the card fill the main content area */
     min-height: 0; /* Allow the card to shrink if needed */
+    height: 100%; /* Occupy full viewport height */
+    box-sizing: border-box; /* Include padding in height */
+
+    /* Layout variables for consistency */
+    --left-col: 240px;
+    --right-col: 320px;
+    --gap: 24px;
+    --padding: 24px;
+    --vh: 100vh; /* Fallback for older browsers */
+    --vh: 100svh; /* Use small viewport height to account for mobile browser UI */
 }
 
-/* Using CSS Grid for the solve view layout on desktop */
+
+/* 
+  Unified 3-column grid for both Result and Solve views.
+  This is the single source of truth for the main app layout.
+  It calculates the board size to be a perfect square that fits the available space.
+*/
+.result-view-container,
 .solve-view-container {
     display: grid;
-    grid-template-columns: auto 280px; /* Board column sized to content */
-    grid-template-rows: auto minmax(0, 1fr); /* Allow rows to shrink to prevent overflow */
-    grid-template-areas:
-        "board captured"
-        "board controls";
-    gap: 1.5rem;
-    align-items: stretch;
+    grid-template-areas: "user-panel board-panel controls-panel";
+    
+    /* Calculate the maximum possible square size for the board */
+    --board-size: min(
+        /* Max width based on other columns and gaps */
+        calc(100vw - var(--left-col) - var(--right-col) - (2 * var(--gap)) - (2 * var(--padding))),
+        /* Max height based on viewport and padding */
+        calc(var(--vh) - (2 * var(--padding)))
+    );
+    
+    grid-template-columns: var(--left-col) var(--board-size) var(--right-col);
+    grid-template-rows: minmax(0, 1fr); /* A single row that fills the available height */
+
+    gap: var(--gap);
     width: 100%;
-    flex-grow: 1;
-    min-height: 0; /* Ensures grid can shrink inside a flex container */
-    justify-content: center; /* Center the grid columns as a group */
+    height: 100%; /* Take height from the parent card, which is correctly sized */
+    margin: 0 auto;
+    
+    justify-content: center; /* Center the grid horizontally if viewport is wider */
+    align-items: stretch; /* Make columns the same height */
 }
 
 /* RESPONSIVE OVERRIDES */
 
-@media (max-width: 768px) and (orientation: portrait) {
-    /* Switch solve views to a single column layout */
+/* Tablet layout: 2 columns, hide user panel */
+@media (max-width: 1024px) {
+    .result-view-container,
     .solve-view-container {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-        justify-content: flex-start; /* Reset justification for flex layout */
-        height: 100%;
+        --right-col-tablet: 300px;
+         --board-size: min(
+            calc(100vw - var(--right-col-tablet) - var(--gap) - (2 * var(--padding))),
+            calc(var(--vh) - (2 * var(--padding)))
+        );
+
+        grid-template-columns: var(--board-size) var(--right-col-tablet);
+        grid-template-areas: "board-panel controls-panel";
     }
+    
+    .result-view-container .user-panel,
+    .solve-view-container .user-panel {
+        display: none;
+    }
+}
+
+
+/* Mobile layout: 1 column, vertical stack */
+@media (max-width: 768px) and (orientation: portrait) {
     .result-view-card, .solve-view-card {
-        padding: 0;
+        padding: 0; /* Remove padding for edge-to-edge layout on mobile */
+        --padding: 0px; /* Update variable for calculations */
+    }
+
+    .result-view-container,
+    .solve-view-container {
+        grid-template-columns: 1fr; /* Single column */
+        grid-template-areas:
+            "user-panel"
+            "board-panel"
+            "controls-panel";
+        grid-template-rows: auto auto 1fr; /* User panel, then board, then controls fill rest */
+        gap: 0;
+        max-width: 100%;
+        height: 100%;
+        align-items: stretch;
+        justify-content: stretch; /* No need to center a single column */
+    }
+
+    .result-view-container .user-panel,
+    .solve-view-container .user-panel {
+        display: flex; /* Ensure it's re-displayed if hidden by tablet styles */
     }
 }

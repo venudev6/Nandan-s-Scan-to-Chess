@@ -24,6 +24,8 @@ export interface User {
     email: string;
     role: Role;
     status: UserStatus;
+    name?: string;
+    about?: string;
     confirmationToken?: string; // Token used for email verification
 }
 
@@ -31,7 +33,7 @@ export interface User {
  * Represents the current view or screen of the application.
  * Used as a state machine in the main App component.
  */
-export type AppState = 'initial' | 'camera' | 'screenCapture' | 'preview' | 'pdfViewer' | 'loading' | 'result' | 'solve' | 'error' | 'login' | 'register' | 'admin' | 'savedGames' | 'history';
+export type AppState = 'initial' | 'camera' | 'screenCapture' | 'preview' | 'pdfViewer' | 'loading' | 'result' | 'solve' | 'error' | 'login' | 'register' | 'admin' | 'savedGames' | 'history' | 'profile';
 
 /**
  * Represents the type of a chess piece (in lowercase).
@@ -62,6 +64,8 @@ export type StoredPdf = {
     name: string;     // The original filename of the PDF.
     thumbnail?: string; // A base64 data URL for the first page's thumbnail.
     lastAccessed: number; // JS timestamp for sorting.
+    driveId?: string; // ID of the file in Google Drive
+    syncStatus?: 'local' | 'syncing' | 'synced' | 'error'; // Sync status with Google Drive
 };
 
 /**
@@ -90,6 +94,8 @@ export interface HistoryEntry {
  */
 export interface StoredGame {
     id: number;
+    name: string;
+    folder: string;
     initialFen: string;
     date: number; // JS timestamp
     thumbnail: string; // base64 data URL of board SVG
@@ -103,4 +109,24 @@ export interface AnalysisDetails {
     confidence: number | null; // The AI's confidence in the scan (0.0 to 1.0).
     reasoning: string | null;  // The AI's reasoning for its confidence score.
     uncertainSquares?: string[]; // Squares the AI is unsure about, e.g., ['e4', 'd5']
+}
+
+/**
+ * Represents a bounding box for a detected puzzle on a PDF page.
+ * Values are percentages of the page dimensions.
+ */
+export interface BoundingBox {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+/**
+ * Represents the record of all puzzles found on a single page of a PDF, as stored in IndexedDB.
+ */
+export interface StoredPdfPuzzles {
+    pdfId: number;
+    page: number;
+    boundingBoxes: BoundingBox[];
 }

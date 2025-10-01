@@ -22,6 +22,7 @@ interface EditorBoardProps {
     analysisDetails: AnalysisDetails;
     isRescanning: boolean;
     showRescanToast: boolean;
+    pieceTheme: string;
 }
 
 const EditorBoard = ({
@@ -33,6 +34,7 @@ const EditorBoard = ({
     analysisDetails,
     isRescanning,
     showRescanToast,
+    pieceTheme,
 }: EditorBoardProps) => {
     return (
         <div className="editor-board-panel">
@@ -54,6 +56,7 @@ const EditorBoard = ({
                 heldPiece={heldPiece}
                 selectedSquare={selectedSquare}
                 uncertainSquares={analysisDetails.uncertainSquares}
+                pieceTheme={pieceTheme}
             />
         </div>
     );

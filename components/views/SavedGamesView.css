@@ -14,7 +14,64 @@
 }
 
 .saved-games-view-section .stored-files-list,
-.saved-games-view-section .empty-state {
+.saved-games-view-section .empty-state,
+.saved-games-view-section .folder-list {
     flex-grow: 1;
     overflow-y: auto; /* Enable scrolling if content overflows */
+}
+
+/* Folder List Styles */
+.folder-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.folder-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.folder-item:hover {
+    background-color: #f9fafb;
+}
+
+.folder-item .folder-icon {
+    width: 24px;
+    height: 24px;
+    color: #9ca3af; /* gray-400 */
+    margin-right: 1rem;
+}
+
+.folder-info {
+    flex-grow: 1;
+}
+
+.folder-info .folder-name {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.folder-info .game-count {
+    font-size: 0.875rem;
+    color: var(--text-muted-color);
+}
+
+.folder-item .chevron-icon {
+    width: 20px;
+    height: 20px;
+    color: #d1d5db; /* gray-300 */
+}
+
+.folder-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.folder-header button {
+    margin-right: 0.5rem;
 }

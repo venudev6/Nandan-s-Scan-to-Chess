@@ -22,7 +22,7 @@
   /* Chessboard Colors (Default Theme) */
   --board-light: #f0d9b5;          /* Light squares on the chessboard */
   --board-dark: #b58863;           /* Dark squares on the chessboard */
-  --highlight-color: rgba(99, 102, 241, 0.2); /* Highlight for selected squares */
+  --highlight-color: rgba(217, 255, 179, 0.837); /* Highlight for selected squares */
 }
 
 /* Board Theme Overrides */

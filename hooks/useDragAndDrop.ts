@@ -2,6 +2,8 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
+// FIX: Imported React to make React.DragEvent type available.
+import React from 'react';
 import { useState, useCallback, useRef } from 'react';
 
 type DragAndDropOptions = {

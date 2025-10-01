@@ -2,107 +2,112 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { PieceSymbol as ChessJSPieceSymbol, Square as ChessJSSquare } from 'chess.js';
 import Chessboard from '../Chessboard';
 import CapturedPieces from '../ui/CapturedPieces';
 import MoveHistory from '../ui/MoveHistory';
 import { soundManager } from '../../lib/SoundManager';
-import { BackIcon, FlipIcon, FirstMoveIcon, PrevMoveIcon, NextMoveIcon, LastMoveIcon, BookmarkIcon, BookmarkFilledIcon, CheckIcon, EngineIcon, LightbulbIcon, HumanIcon, ComputerIcon, ResetIcon } from '../ui/Icons';
-import { PIECE_COMPONENTS, PIECE_NAMES } from '../../lib/chessConstants';
+import { BackIcon, FlipIcon, FirstMoveIcon, PrevMoveIcon, NextMoveIcon, LastMoveIcon, BookmarkIcon, BookmarkFilledIcon, CheckIcon, CloseIcon } from '../ui/Icons';
+import { PIECE_SETS, PIECE_NAMES } from '../../lib/chessConstants';
 import { useChessGame } from '../../hooks/useChessGame';
 import { useBoardDrawing } from '../../hooks/useBoardDrawing';
 import { useCapturedPieces } from '../../hooks/useCapturedPieces';
 import { db } from '../../lib/db';
 import { generateBoardThumbnail } from '../../lib/utils';
-import type { AppState, PieceColor, PieceSymbol, HistoryEntry, User } from '../../lib/types';
+import type { AppState, PieceColor, PieceSymbol, HistoryEntry, User, StoredGame, AnalysisDetails } from '../../lib/types';
 import UserPanel from '../result/UserPanel';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import './SolveView.css';
 
-interface EngineAnalysisPanelProps {
-    engineThinking: boolean;
-    evaluation: string | null;
-    bestMove: { from: string; to: string } | null;
-    playVsComputer: boolean;
-    togglePlayVsComputer: (enabled: boolean) => void;
-    playerColor: PieceColor;
-    setPlayerColor: (color: PieceColor) => void;
-    getHint: () => void;
+type AppSettingsHook = ReturnType<typeof useAppSettings>;
+
+// --- Bookmark Modal Component ---
+interface BookmarkModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (name: string, folder: string) => Promise<void>;
+    onRemove: () => Promise<void>;
+    initialGame: StoredGame | null;
+    anchorRect: DOMRect | null;
 }
 
-const EngineAnalysisPanel = ({
-    engineThinking,
-    evaluation,
-    bestMove,
-    playVsComputer,
-    togglePlayVsComputer,
-    playerColor,
-    setPlayerColor,
-    getHint
-}: EngineAnalysisPanelProps) => {
-    return (
-        <div className="control-section">
-            <h4><EngineIcon /> Engine Analysis</h4>
-            <div className="engine-controls">
-                <div className="engine-control-item">
-                    <label htmlFor="play-vs-cpu-toggle">Play vs. Computer</label>
-                    <div className="toggle-switch">
-                        <input
-                            type="checkbox"
-                            id="play-vs-cpu-toggle"
-                            checked={playVsComputer}
-                            onChange={(e) => togglePlayVsComputer(e.target.checked)}
-                            aria-label="Play against the computer"
-                        />
-                        <span className="slider round"></span>
-                    </div>
+const BookmarkModal = ({ isOpen, onClose, onSave, onRemove, initialGame, anchorRect }: BookmarkModalProps) => {
+    const [name, setName] = useState('');
+    const [selectedFolder, setSelectedFolder] = useState('Default');
+    const [newFolderName, setNewFolderName] = useState('');
+    const [isCreatingNewFolder, setIsCreatingNewFolder] = useState(false);
+    const [allFolders, setAllFolders] = useState<string[]>([]);
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchFolders = async () => {
+                const folders = await db.getAllFolders();
+                setAllFolders(folders);
+            };
+            fetchFolders();
+            
+            setName(initialGame?.name || `Game from ${new Date().toLocaleDateString()}`);
+            setSelectedFolder(initialGame?.folder || 'Default');
+            setIsCreatingNewFolder(false);
+            setNewFolderName('');
+        }
+    }, [isOpen, initialGame]);
+
+    if (!isOpen || !anchorRect) return null;
+
+    const modalStyle: React.CSSProperties = {
+        position: 'absolute',
+        top: `${anchorRect.bottom + 8}px`,
+        right: `${window.innerWidth - anchorRect.right}px`,
+    };
+
+    const handleFolderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        if (e.target.value === '__new__') {
+            setIsCreatingNewFolder(true);
+        } else {
+            setSelectedFolder(e.target.value);
+            setIsCreatingNewFolder(false);
+        }
+    };
+
+    const handleSaveClick = () => {
+        const folder = isCreatingNewFolder ? (newFolderName.trim() || 'Default') : selectedFolder;
+        onSave(name.trim(), folder);
+    };
+
+    return createPortal(
+        <div className="bookmark-modal-overlay" onClick={onClose}>
+            <div className="bookmark-modal" ref={modalRef} style={modalStyle} onClick={(e) => e.stopPropagation()}>
+                <div className="bookmark-modal-header">
+                    <h3>{initialGame ? 'Edit Bookmark' : 'Add Bookmark'}</h3>
+                    <button onClick={onClose} className="close-btn"><CloseIcon /></button>
                 </div>
-                {playVsComputer && (
-                    <div className="engine-control-item">
-                        <span>Play as:</span>
-                        <div className="turn-selector-inline">
-                            <input
-                                type="radio"
-                                id="play-as-w"
-                                name="playerColor"
-                                value="w"
-                                checked={playerColor === 'w'}
-                                onChange={() => setPlayerColor('w')}
-                            />
-                            <label htmlFor="play-as-w" title="Play as White"><HumanIcon /></label>
-                            <input
-                                type="radio"
-                                id="play-as-b"
-                                name="playerColor"
-                                value="b"
-                                checked={playerColor === 'b'}
-                                onChange={() => setPlayerColor('b')}
-                            />
-                            <label htmlFor="play-as-b" title="Play as Black"><ComputerIcon /></label>
-                        </div>
-                    </div>
-                )}
-                 <button className="btn btn-secondary get-hint-btn" onClick={getHint} disabled={engineThinking || playVsComputer}>
-                    <LightbulbIcon />
-                    {engineThinking ? 'Thinking...' : 'Get Hint'}
-                </button>
-            </div>
-            {(evaluation || (bestMove && !playVsComputer)) && (
-                <div className="engine-output">
-                    <div className="evaluation-display">
-                        <strong>Eval:</strong>
-                        <span>{evaluation ?? '...'}</span>
-                    </div>
-                    {!playVsComputer && bestMove && (
-                        <div className="best-move-display">
-                            <strong>Best Move:</strong>
-                            <span>{`${bestMove.from}${bestMove.to}`}</span>
-                        </div>
+                <div className="bookmark-form-group">
+                    <label htmlFor="bookmark-name">Name</label>
+                    <input id="bookmark-name" type="text" value={name} onChange={e => setName(e.target.value)} />
+                </div>
+                <div className="bookmark-form-group">
+                    <label htmlFor="bookmark-folder">Folder</label>
+                    {!isCreatingNewFolder ? (
+                        <select id="bookmark-folder" value={selectedFolder} onChange={handleFolderChange}>
+                            {!allFolders.includes(selectedFolder) && <option value={selectedFolder}>{selectedFolder}</option>}
+                            {allFolders.map(f => <option key={f} value={f}>{f}</option>)}
+                            <option value="__new__">Create new folder...</option>
+                        </select>
+                    ) : (
+                        <input type="text" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="New folder name" autoFocus />
                     )}
                 </div>
-            )}
-        </div>
+                <div className="bookmark-modal-actions">
+                    {initialGame && <button className="btn btn-remove" onClick={onRemove}>Remove</button>}
+                    <button className="btn btn-primary" onClick={handleSaveClick}>Done</button>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 };
 
@@ -111,7 +116,7 @@ interface SolveViewProps {
     initialFen: string;
     onBack: () => void;
     onHome: () => void;
-    analysisCooldown: number;
+    appSettings: AppSettingsHook;
     onNextPuzzle: () => void;
     source: 'pdf' | 'image';
     initialHistory?: HistoryEntry[] | null;
@@ -123,34 +128,56 @@ interface SolveViewProps {
     onAdminPanelClick: () => void;
     onSavedGamesClick: () => void;
     onHistoryClick: () => void;
+    onProfileClick: () => void;
+    onAuthRequired: () => void;
+    scanDuration: number | null;
+    analysisDetails: AnalysisDetails | null;
 }
 
 /**
  * The main analysis and interaction view. It allows the user to play through moves,
- * see captured pieces, navigate the move history, and play against the Stockfish engine.
+ * see captured pieces, and navigate the move history.
  */
 const SolveView = ({
-    initialFen, onBack, onHome, analysisCooldown, onNextPuzzle, source, initialHistory, sourceView, initialGameId,
-    user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGamesClick, onHistoryClick
+    initialFen, onBack, onHome, appSettings, onNextPuzzle, source, initialHistory, sourceView, initialGameId,
+    user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGamesClick, onHistoryClick, onProfileClick, onAuthRequired, scanDuration,
+    analysisDetails
 }: SolveViewProps) => {
     const {
         game, currentBoard, history, historyIndex, gameStatus,
         selectedSquare, possibleMoves, promotionMove,
-        handleSquareClick, handlePromotion, navigateHistory,
+        handleSquareClick: originalHandleSquareClick, handlePromotion, navigateHistory,
         isGameOver, isCheckmate, isCheck, turn,
-        isFlipped, setIsFlipped, engineThinking, bestMove,
-        evaluation, playVsComputer, playerColor, getHint,
-        togglePlayVsComputer, setPlayerColor, handleReset,
+        isFlipped, setIsFlipped,
     } = useChessGame(initialFen, initialHistory || undefined);
+    
+    const [highlightedSquares, setHighlightedSquares] = useState<ChessJSSquare[]>([]);
 
-    const { boardAreaRef, arrows, drawingArrow, handleBoardPointerDown, handleBoardPointerMove, handleBoardPointerUp } = useBoardDrawing(isFlipped);
+    // FIX: Moved `useBoardDrawing` hook call before `handleSquareRightClick` to resolve "used before declaration" error.
+    const { boardAreaRef, renderedArrows, setArrows, handleBoardPointerDown, handleBoardPointerMove, handleBoardPointerUp } = useBoardDrawing(isFlipped, handleSquareRightClick);
+
+    // This function is now defined after `setArrows` is available from the `useBoardDrawing` hook.
+    function handleSquareRightClick(square: ChessJSSquare) {
+        setHighlightedSquares(prev => {
+            if (prev.includes(square)) {
+                return prev.filter(s => s !== square);
+            } else {
+                return [...prev, square];
+            }
+        });
+    }
     
     const { capturedWhitePieces, capturedBlackPieces, materialAdvantage } = useCapturedPieces(history, historyIndex);
 
-    const [cooldown, setCooldown] = useState(analysisCooldown);
+    const [cooldown, setCooldown] = useState(appSettings.analysisCooldown);
     const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
-    const [isBookmarked, setIsBookmarked] = useState(!!initialGameId);
-    const [savedGameId, setSavedGameId] = useState<number | undefined>(initialGameId);
+    const [bookmarkedGame, setBookmarkedGame] = useState<StoredGame | null>(null);
+    const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false);
+    const [bookmarkAnchorRect, setBookmarkAnchorRect] = useState<DOMRect | null>(null);
+    const bookmarkButtonRef = useRef<HTMLButtonElement>(null);
+
+    const PIECE_COMPONENTS = PIECE_SETS[appSettings.pieceTheme as keyof typeof PIECE_SETS] || PIECE_SETS['merida'];
+
     
     const initialFenRef = useRef(initialFen);
     const historyRef = useRef(history);
@@ -165,6 +192,12 @@ const SolveView = ({
         return { row: 7 - rank, col: file };
     }, [selectedSquare]);
 
+    const handleBoardClick = useCallback((pos: { row: number; col: number }) => {
+        setArrows([]);
+        setHighlightedSquares([]);
+        originalHandleSquareClick(pos);
+    }, [originalHandleSquareClick, setArrows]);
+
     useEffect(() => {
         initialFenRef.current = initialFen;
     }, [initialFen]);
@@ -174,28 +207,21 @@ const SolveView = ({
         historyRef.current = history;
     }, [history]);
 
+    // This effect keeps the local cooldown state synchronized with the global app setting.
     useEffect(() => {
-        const checkBookmarkStatus = async () => {
-            await db.init();
-            if (initialGameId) {
-                // If an ID is passed from props, we know it's bookmarked.
-                setIsBookmarked(true);
-                setSavedGameId(initialGameId);
-            } else {
-                // Otherwise, check by FEN for new/history games.
-                const savedGames = await db.getAllGames();
-                const existingGame = savedGames.find(g => g.initialFen === initialFen);
-                if (existingGame) {
-                    setIsBookmarked(true);
-                    setSavedGameId(existingGame.id);
-                } else {
-                    setIsBookmarked(false);
-                    setSavedGameId(undefined);
-                }
-            }
-        };
+        setCooldown(appSettings.analysisCooldown);
+    }, [appSettings.analysisCooldown]);
+
+    const checkBookmarkStatus = useCallback(async () => {
+        await db.init();
+        const savedGames = await db.getAllGames();
+        const existingGame = savedGames.find(g => g.initialFen === initialFen);
+        setBookmarkedGame(existingGame || null);
+    }, [initialFen]);
+
+    useEffect(() => {
         checkBookmarkStatus();
-    }, [initialFen, initialGameId]);
+    }, [checkBookmarkStatus]);
 
 
     useEffect(() => {
@@ -209,7 +235,7 @@ const SolveView = ({
                         const thumbnail = generateBoardThumbnail(initialFenRef.current);
                         const gameData = {
                             initialFen: initialFenRef.current,
-                            date: Date.now(), // This is the timestamp
+                            date: Date.now(),
                             thumbnail,
                             moveHistory: historyRef.current,
                         };
@@ -231,45 +257,55 @@ const SolveView = ({
         }, 1000);
         return () => clearInterval(timer);
     }, [cooldown]);
-    
-    // Automatically flip the board to the player's color when starting a game vs computer
-    useEffect(() => {
-        if (playVsComputer) {
-            setIsFlipped(playerColor === 'b');
+
+    const handleBookmarkClick = () => {
+        soundManager.play('UI_CLICK');
+        if (bookmarkButtonRef.current) {
+            setBookmarkAnchorRect(bookmarkButtonRef.current.getBoundingClientRect());
         }
-    }, [playVsComputer, playerColor, setIsFlipped]);
+        setIsBookmarkModalOpen(true);
+    };
 
-
-    const handleToggleBookmark = async () => {
+    const handleSaveBookmark = async (name: string, folder: string) => {
         try {
-            soundManager.play('UI_CLICK');
             await db.init();
-
-            if (isBookmarked && savedGameId) {
-                // Unbookmark
-                await db.deleteGame(savedGameId);
-                setIsBookmarked(false);
-                setSavedGameId(undefined);
+            if (bookmarkedGame) {
+                // Update existing bookmark
+                await db.updateGameDetails(bookmarkedGame.id, name, folder);
             } else {
-                // Bookmark
+                // Create new bookmark
                 const thumbnail = generateBoardThumbnail(initialFen);
                 const gameData = {
+                    name,
+                    folder,
                     initialFen,
                     date: Date.now(),
                     thumbnail,
                     moveHistory: history,
                 };
-                const newId = await db.saveGame(gameData);
-                setSavedGameId(newId);
-                setIsBookmarked(true);
-                setShowSaveConfirmation(true);
-                setTimeout(() => setShowSaveConfirmation(false), 2500);
+                await db.saveGame(gameData);
             }
+            await checkBookmarkStatus();
+            setIsBookmarkModalOpen(false);
+            setShowSaveConfirmation(true);
+            setTimeout(() => setShowSaveConfirmation(false), 2500);
         } catch (e) {
-            console.error("Failed to toggle bookmark:", e);
+            console.error("Failed to save bookmark:", e);
         }
     };
 
+    const handleRemoveBookmark = async () => {
+        try {
+            if (bookmarkedGame) {
+                await db.init();
+                await db.deleteGame(bookmarkedGame.id);
+                setBookmarkedGame(null);
+            }
+            setIsBookmarkModalOpen(false);
+        } catch (e) {
+            console.error("Failed to remove bookmark:", e);
+        }
+    };
 
     const handleAnalysisClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (cooldown > 0) e.preventDefault();
@@ -277,26 +313,26 @@ const SolveView = ({
 
     const lastMove = historyIndex >= 0 ? { from: history[historyIndex].from, to: history[historyIndex].to } : null;
     const backButtonTitle = sourceView === 'result' ? "Back to Editor" : "Back to List";
-    const nextButtonText = 'Next Puzzle';
+    const isFromPdf = source === 'pdf';
+    const nextButtonText = isFromPdf ? 'Back to PDF' : 'New Scan';
+    const nextButtonTitle = isFromPdf ? 'Return to PDF viewer' : 'Start a new scan';
 
     return (
         <div className="card solve-view-card">
-            <div className={`solve-view-container ${isLoggedIn ? 'logged-in' : 'guest'}`}>
-                 {isLoggedIn && user && (
-                    <UserPanel
-                        user={user}
-                        onLogout={onLogout}
-                        onAdminPanelClick={onAdminPanelClick}
-                        onSavedGamesClick={onSavedGamesClick}
-                        onHistoryClick={onHistoryClick}
-                    />
-                )}
-                <div className="solve-view-header">
-                     <div className="captured-pieces-stack">
-                        <CapturedPieces color="b" pieces={capturedBlackPieces} scoreAdvantage={materialAdvantage.blackAdvantage} />
-                        <CapturedPieces color="w" pieces={capturedWhitePieces} scoreAdvantage={materialAdvantage.whiteAdvantage} />
-                    </div>
-                </div>
+            <div className="solve-view-container">
+                 <UserPanel
+                    user={user}
+                    isLoggedIn={isLoggedIn}
+                    onLogout={onLogout}
+                    onAdminPanelClick={onAdminPanelClick}
+                    onSavedGamesClick={onSavedGamesClick}
+                    onHistoryClick={onHistoryClick}
+                    onLoginClick={onAuthRequired}
+                    onProfileClick={onProfileClick}
+                    appSettings={appSettings}
+                    scanDuration={scanDuration}
+                    analysisDetails={analysisDetails}
+                />
                 <div
                     className="board-area"
                     ref={boardAreaRef}
@@ -307,24 +343,39 @@ const SolveView = ({
                 >
                     <Chessboard
                         boardState={currentBoard}
-                        onSquareClick={(pos) => { handleSquareClick(pos); }}
+                        onSquareClick={handleBoardClick}
                         selectedSquare={selectedSquareCoords}
                         lastMove={lastMove}
                         possibleMoves={possibleMoves}
+                        userHighlights={highlightedSquares}
                         isFlipped={isFlipped}
-                        bestMoveHighlight={playVsComputer ? null : bestMove}
+                        pieceTheme={appSettings.pieceTheme}
                     />
-                    {(engineThinking) && (
-                         <div className="engine-thinking-overlay">
-                            <div className="spinner"></div>
-                            <span>Stockfish is thinking...</span>
-                        </div>
+                    {renderedArrows.length > 0 && (
+                        <svg className="drawing-overlay" width="100%" height="100%">
+                            <defs>
+                                <marker
+                                    id="arrowhead"
+                                    viewBox="0 -24 41.57 48"
+                                    refX="0"
+                                    refY="0"
+                                    markerUnits="userSpaceOnUse"
+                                    markerWidth="48"
+                                    markerHeight="48"
+                                    orient="auto"
+                                >
+                                    {/* Equilateral triangle with side length of approx 48px. Height is ~41.57px. */}
+                                    <polygon points="41.57,0 0,-24 0,24" />
+                                </marker>
+                            </defs>
+                            {renderedArrows}
+                        </svg>
                     )}
                     {isGameOver && (
                         <div className="game-over-overlay">
                             <h2>{gameStatus}</h2>
-                            <button className="btn btn-secondary" onClick={onNextPuzzle}>
-                                Next Puzzle
+                            <button className="btn btn-secondary" onClick={() => { soundManager.play('UI_CLICK'); onNextPuzzle(); }}>
+                                {nextButtonText}
                             </button>
                         </div>
                     )}
@@ -336,34 +387,38 @@ const SolveView = ({
                     )}
                 </div>
                 <div className="solve-controls">
+                    <div className="solve-view-header">
+                         <div className="captured-pieces-stack">
+                            <CapturedPieces color="b" pieces={capturedBlackPieces} scoreAdvantage={materialAdvantage.blackAdvantage} pieceTheme={appSettings.pieceTheme} />
+                            <CapturedPieces color="w" pieces={capturedWhitePieces} scoreAdvantage={materialAdvantage.whiteAdvantage} pieceTheme={appSettings.pieceTheme} />
+                        </div>
+                    </div>
                     <div className="move-navigation-controls">
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(-1); }} disabled={historyIndex < 0} aria-label="First move" title="Go to the first move"><FirstMoveIcon /></button>
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(historyIndex - 1); }} disabled={historyIndex < 0} aria-label="Previous move" title="Go to previous move"><PrevMoveIcon /></button>
-                        <button className="btn-icon" onClick={handleReset} aria-label="Reset Board" title="Reset Board"><ResetIcon /></button>
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); setIsFlipped(!isFlipped); }} aria-label="Flip board" title="Flip board orientation"><FlipIcon /></button>
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(historyIndex + 1); }} disabled={historyIndex >= history.length - 1} aria-label="Next move" title="Go to next move"><NextMoveIcon /></button>
                         <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(history.length - 1); }} disabled={historyIndex >= history.length - 1} aria-label="Last move" title="Go to the last move"><LastMoveIcon /></button>
                     </div>
-                     <EngineAnalysisPanel 
-                        engineThinking={engineThinking}
-                        evaluation={evaluation}
-                        bestMove={bestMove}
-                        playVsComputer={playVsComputer}
-                        togglePlayVsComputer={togglePlayVsComputer}
-                        playerColor={playerColor}
-                        setPlayerColor={setPlayerColor}
-                        getHint={getHint}
-                    />
                     <div className="move-history-wrapper">
                         <MoveHistory history={history} historyIndex={historyIndex} onNavigate={navigateHistory} />
                         <button 
-                            className={`btn-icon save-game-btn ${isBookmarked ? 'bookmarked' : ''}`}
-                            onClick={handleToggleBookmark} 
-                            title={isBookmarked ? "Remove Bookmark" : "Bookmark Game"}
-                            aria-label={isBookmarked ? "Remove Bookmark" : "Bookmark Game"}
+                            ref={bookmarkButtonRef}
+                            className={`btn-icon save-game-btn ${bookmarkedGame ? 'bookmarked' : ''}`}
+                            onClick={handleBookmarkClick} 
+                            title={bookmarkedGame ? "Edit Bookmark" : "Bookmark Game"}
+                            aria-label={bookmarkedGame ? "Edit Bookmark" : "Bookmark Game"}
                         >
-                            {isBookmarked ? <BookmarkFilledIcon /> : <BookmarkIcon />}
+                            {bookmarkedGame ? <BookmarkFilledIcon /> : <BookmarkIcon />}
                         </button>
+                        <BookmarkModal
+                            isOpen={isBookmarkModalOpen}
+                            onClose={() => setIsBookmarkModalOpen(false)}
+                            onSave={handleSaveBookmark}
+                            onRemove={handleRemoveBookmark}
+                            initialGame={bookmarkedGame}
+                            anchorRect={bookmarkAnchorRect}
+                        />
                     </div>
 
                     <div className="solve-main-actions">
@@ -374,9 +429,9 @@ const SolveView = ({
                         Analysis with Lichess.org {cooldown > 0 ? `(${Math.floor(cooldown/60)}:${String(cooldown%60).padStart(2,'0')})` : ''}
                         </a>
                         <div className="result-actions">
-                            <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); onBack(); }} aria-label={backButtonTitle} title={backButtonTitle}><BackIcon/></button>
+                            <button className="btn btn-secondary btn-back" onClick={() => { soundManager.play('UI_CLICK'); onBack(); }} title={backButtonTitle}><BackIcon/> Back</button>
                             <button className="btn btn-secondary" onClick={() => { soundManager.play('UI_CLICK'); onHome(); }} aria-label="Go to Home Screen" title="Return to the home screen">Home</button>
-                            <button className="btn btn-analyze" onClick={() => { soundManager.play('UI_CLICK'); onNextPuzzle(); }} title="Start a new scan or puzzle">
+                            <button className="btn btn-analyze" onClick={() => { soundManager.play('UI_CLICK'); onNextPuzzle(); }} title={nextButtonTitle}>
                                 {nextButtonText}
                             </button>
                         </div>

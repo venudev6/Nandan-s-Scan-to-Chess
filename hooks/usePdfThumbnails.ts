@@ -63,7 +63,8 @@ export const usePdfThumbnails = (pdfDoc: pdfjsLib.PDFDocumentProxy | null, curre
     }, [pdfDoc]);
 
     useEffect(() => {
-        if (!pdfDoc) return;
+        // Only start loading thumbnails once the main page has finished rendering.
+        if (!pdfDoc || isPageRendering) return;
 
         loadThumbnail(currentPage);
 
@@ -88,7 +89,7 @@ export const usePdfThumbnails = (pdfDoc: pdfjsLib.PDFDocumentProxy | null, curre
         });
         
         return () => observerRef.current?.disconnect();
-    }, [pdfDoc, currentPage, loadThumbnail]);
+    }, [pdfDoc, currentPage, loadThumbnail, isPageRendering]);
     
     const thumbnailRefCallback = useCallback((node: HTMLLIElement | null) => {
         if (node && observerRef.current) {

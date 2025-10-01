@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Logo } from '../ui/Logo';
+import { CloseIcon } from '../ui/Icons';
 import './LoginView.css'; // Re-use the same styles as LoginView
 
 interface RegisterViewProps {
@@ -42,6 +43,9 @@ const RegisterView = ({ onLoginClick, onCancel, onRegisterSuccess }: RegisterVie
 
     return (
         <div className="card auth-card">
+            <button className="modal-close-btn" onClick={onCancel} aria-label="Close">
+                <CloseIcon />
+            </button>
             <Logo />
             <h1 className="auth-title">Create Account</h1>
             <p className="auth-subtitle">Get started with Scan to Chess.</p>
@@ -94,7 +98,7 @@ const RegisterView = ({ onLoginClick, onCancel, onRegisterSuccess }: RegisterVie
                     Sign In
                 </a>
                 <span className="footer-link-separator">·</span>
-                <a href="#" onClick={(e) => { e.preventDefault(); onCancel(); }}>Back to Home</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); onCancel(); }}>Cancel</a>
             </p>
         </div>
     );

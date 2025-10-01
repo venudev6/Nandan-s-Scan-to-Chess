@@ -1,0 +1,168 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+.piece-set-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.piece-set-modal-content {
+    background-color: #ffffff;
+    border-radius: 1rem;
+    width: 90vw;
+    max-width: 720px; /* Wider to accommodate two grids */
+    height: auto;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    animation: slideUp 0.3s ease;
+}
+
+.piece-set-modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.piece-set-modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    text-align: center;
+}
+
+.piece-set-modal-body {
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 1.5rem;
+    display: flex;
+    gap: 1.5rem;
+}
+
+/* Left Panel: 4x3 Grid of Knight Selectors */
+.theme-selector-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    align-content: start;
+    overflow-y: auto;
+    padding: 0.25rem;
+}
+
+.theme-selector-grid-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    background-color: transparent;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.theme-selector-grid-item:hover {
+    background-color: #f3f4f6; /* gray-100 */
+}
+
+.theme-selector-grid-item.selected {
+    border-color: var(--primary-color);
+    background-color: #eef2ff; /* indigo-50 */
+}
+
+.theme-selector-grid-knight {
+    width: 100%;
+    max-width: 50px;
+    height: auto;
+    aspect-ratio: 1/1;
+}
+
+.theme-selector-grid-knight svg {
+    width: 100%;
+    height: 100%;
+}
+
+.theme-selector-grid-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-color);
+    text-align: center;
+}
+
+/* Right Panel: 4x3 Grid of Piece Previews */
+.piece-preview-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, 1fr); /* Explicitly set 4 rows */
+    gap: 0.5rem;
+    align-items: center;
+    justify-items: center;
+    background-color: #f3f4f6;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    overflow-y: auto;
+}
+
+.piece-preview-grid-item {
+    width: 90%;
+    height: 90%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.piece-preview-grid-item svg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* === Footer === */
+.piece-set-modal-actions {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    flex-shrink: 0;
+    background-color: #f9fafb;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 700px) {
+    .piece-set-modal-content {
+        max-width: 380px; /* More compact on mobile */
+    }
+    
+    .piece-set-modal-body {
+        flex-direction: column; /* Stack columns vertically */
+        overflow-y: auto; /* Allow the whole body to scroll */
+        padding: 0.75rem;
+        gap: 1rem;
+    }
+
+    .theme-selector-grid {
+        /* Keep 3 columns, it's compact enough */
+        overflow-y: visible; /* Don't need internal scroll */
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .piece-preview-grid {
+        overflow-y: visible; /* Don't need internal scroll */
+    }
+}

@@ -30,6 +30,7 @@ export const ConfirmationDialog = ({
         return null;
     }
 
+    // FIX: Re-enable the portal for correct modal behavior. The previous bug was in the calling component.
     return createPortal(
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>

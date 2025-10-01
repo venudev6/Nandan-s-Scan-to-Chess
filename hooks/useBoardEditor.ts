@@ -2,6 +2,8 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
+// FIX: Imported React to make React.ChangeEvent type available.
+import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { soundManager } from '../lib/SoundManager';

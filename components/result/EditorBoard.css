@@ -1,83 +1,48 @@
-/* make page fill viewport */
-html, body, #root {
-  height: 100%;
-  margin: 0;
-}
-
-/* Page grid: left panel | board | right panel
-   justify-content:center centers the whole three-column block in the page */
-.result-view-container {
-  height: 100vh;              /* let columns use full viewport height */
-  display: grid;
-  grid-template-columns: 260px 1fr 320px;
-  gap: 24px;
-  box-sizing: border-box;
-  padding: 16px 24px;
-  justify-content: center;
-  align-items: stretch;
-}
-
-/* left user panel stays at start/top of column */
-.user-panel {
-  grid-column: 1 / 2;
-  align-self: start;
-}
-
-/* board column container: center horizontally, stretch vertically */
 .editor-board-panel {
-  grid-column: 2 / 3;
-  display: flex;
-  align-items: stretch;   /* allow children to take full column height */
-  justify-content: center;
-  height: 100%;           /* critical */
-  min-height: 0;          /* allow flex children to shrink/grow correctly */
-  box-sizing: border-box;
-  padding: 8px;
+    grid-area: board-panel;
+    position: relative; /* For overlays */
+    display: flex;
+    align-items: center; /* Vertically center the board wrapper */
+    justify-content: center; /* Horizontally center */
+    min-height: 0; /* Necessary for flex children in a flex container */
 }
 
-/* wrapper that contains the actual chessboard element */
-.board-wrapper {
-  width: 100%;
-  height: 100%;           /* make wrapper fill the column height */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-  box-sizing: border-box;
-  padding: 8px;
+/* Overlay for when a rescan is in progress */
+.rescanning-board-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    font-weight: 500;
+    color: var(--text-color);
+    border-radius: 4px;
 }
 
-/* the chessboard stays square, uses as much space as possible without overflowing controls */
-.chessboard, .board {
- 
-    height: 100%;                     /* take full height from wrapper */
-  width: auto;                      /* width grows to preserve aspect ratio */
-  max-width: calc(100% - 16px);     /* never overflow the column (account for padding) */
-  aspect-ratio: 1 / 1;              /* enforce square */
-  object-fit: contain;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  border-radius: 6px;
+/* Toast message for when a rescan is complete */
+.rescan-toast {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--success-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 11;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    animation: fade-in-out-toast 3s ease-in-out forwards;
 }
 
-/* right controls column */
-.editor-controls-panel {
-  grid-column: 3 / 4;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-self: start;
-  z-index: 5;
-}
-
-/* responsive: stack on narrow screens */
-@media (max-width: 1024px) {
-  .result-view-container {
-    grid-template-columns: 1fr;
-    height: auto;
-    padding: 12px;
-  }
-  .user-panel { order: 1; }
-  .editor-board-panel { order: 2; height: auto; }
-  .editor-controls-panel { order: 3; }
-  .chessboard, .board { max-width: 100%; max-height: none; aspect-ratio: 1/1; }
+.rescan-toast svg {
+    width: 20px;
+    height: 20px;
 }

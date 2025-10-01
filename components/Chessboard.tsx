@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import React, { useMemo } from 'react';
-import { FILES, RANKS, PIECE_NAMES, PIECE_COMPONENTS } from '../lib/chessConstants';
+import { FILES, RANKS, PIECE_NAMES, PIECE_SETS } from '../lib/chessConstants';
 import type { BoardState, BoardPiece } from '../lib/types';
 import './Chessboard.css';
 
@@ -12,6 +12,20 @@ type HeldPiece = {
     piece: BoardPiece;
     from: { row: number, col: number } | 'palette';
 };
+
+interface ChessboardProps {
+    boardState: BoardState;
+    onSquareClick?: (pos: { row: number, col: number }) => void;
+    onPiecePointerDown?: (item: HeldPiece, e: React.PointerEvent) => void;
+    selectedSquare?: { row: number, col: number } | null;
+    lastMove?: { from: string, to: string } | null;
+    possibleMoves?: string[];
+    uncertainSquares?: string[];
+    userHighlights?: string[];
+    isFlipped?: boolean;
+    heldPiece?: HeldPiece | null;
+    pieceTheme: string;
+}
 
 /**
  * A highly configurable and memoized component for rendering a chessboard.
@@ -26,35 +40,16 @@ const Chessboard = React.memo(({
   lastMove,
   possibleMoves = [],
   uncertainSquares = [],
+  userHighlights = [],
   isFlipped = false,
   heldPiece,
-  bestMoveHighlight,
-}: {
-  /** The 8x8 2D array representing the board position. */
-  boardState: BoardState;
-  /** Callback function when a square is clicked. */
-  onSquareClick?: (pos: { row: number, col: number }) => void;
-  /** Callback for when a pointer-down event occurs on a piece. */
-  onPiecePointerDown?: (item: HeldPiece, e: React.PointerEvent) => void;
-  /** The currently selected square's coordinates for click-to-move. */
-  selectedSquare?: { row: number, col: number } | null;
-  /** The last move made, used for highlighting. */
-  lastMove?: { from: string, to: string } | null;
-  /** An array of possible move destination squares (e.g., ['e4', 'f3']). */
-  possibleMoves?: string[];
-  /** An array of uncertain squares from analysis (e.g., ['e4', 'd5']). */
-  uncertainSquares?: string[];
-  /** If true, the board is displayed from Black's perspective. */
-  isFlipped?: boolean;
-  /** The piece currently being held, for both click-to-move and drag-and-drop. */
-  heldPiece?: HeldPiece | null;
-  /** The best move suggested by the engine, for highlighting. */
-  bestMoveHighlight?: { from: string, to: string } | null;
-}) => {
+  pieceTheme
+}: ChessboardProps) => {
     
     // Determine the order of ranks and files based on whether the board is flipped.
     const ranks = isFlipped ? [...RANKS] : [...RANKS].reverse();
     const files = isFlipped ? [...FILES].reverse() : [...FILES];
+    const PIECE_COMPONENTS = PIECE_SETS[pieceTheme as keyof typeof PIECE_SETS] || PIECE_SETS['merida'];
     
     // Helper function to convert algebraic notation (e.g., 'e4') to board coordinates ({row: 4, col: 4}).
     const getSquareCoords = (square: string): { row: number, col: number } => {
@@ -86,14 +81,9 @@ const Chessboard = React.memo(({
             return `${coords.row}-${coords.col}`;
         }));
     }, [uncertainSquares]);
-
-    const bestMoveSquares = useMemo(() => {
-        if (!bestMoveHighlight) return new Set();
-        const fromCoords = getSquareCoords(bestMoveHighlight.from);
-        const toCoords = getSquareCoords(bestMoveHighlight.to);
-        return new Set([`${fromCoords.row}-${fromCoords.col}`, `${toCoords.row}-${toCoords.col}`]);
-    }, [bestMoveHighlight]);
     
+    const userHighlightSet = useMemo(() => new Set(userHighlights), [userHighlights]);
+
     // Determine the source square of the currently held piece for styling.
     const heldSquare = (heldPiece && typeof heldPiece.from === 'object' && 'row' in heldPiece.from) ? heldPiece.from : null;
 
@@ -110,14 +100,14 @@ const Chessboard = React.memo(({
 
                 const piece = boardState[row]?.[col];
                 const isLight = (row + col) % 2 === 0;
+                const squareName = `${FILES[col]}${RANKS[7 - row]}`;
                 
                 // Determine the state of the current square for styling.
                 const isSelected = selectedSquare && selectedSquare.row === row && selectedSquare.col === col;
                 const isLastMove = lastMoveSquares.has(`${row}-${col}`);
                 const isPossibleMove = possibleMoveSquares.has(`${row}-${col}`);
                 const isUncertain = uncertainSquareSet.has(`${row}-${col}`);
-                const isBestMove = bestMoveSquares.has(`${row}-${col}`);
-                const squareName = `${FILES[col]}${RANKS[7 - row]}`;
+                const isUserHighlighted = userHighlightSet.has(squareName);
                 const hasPiece = !!piece;
                 
                 const isHeldOrigin = heldSquare && heldSquare.row === row && heldSquare.col === col;
@@ -129,7 +119,7 @@ const Chessboard = React.memo(({
                         data-row={row}
                         data-col={col}
                         // Dynamically build the CSS class list based on the square's state.
-                        className={`square ${isLight ? 'light' : 'dark'} ${isSelected ? 'selected' : ''} ${isLastMove ? 'last-move-square' : ''} ${isHeldOrigin ? 'held-piece-origin' : ''} ${isUncertain ? 'uncertain-square' : ''} ${isBestMove ? 'best-move-square' : ''}`}
+                        className={`square ${isLight ? 'light' : 'dark'} ${isSelected ? 'selected' : ''} ${isLastMove ? 'last-move-square' : ''} ${isHeldOrigin ? 'held-piece-origin' : ''} ${isUncertain ? 'uncertain-square' : ''} ${isUserHighlighted ? 'user-highlighted-square' : ''}`}
                         onClick={() => onSquareClick?.({ row, col })}
                         aria-label={`Square ${squareName}`}
                     >

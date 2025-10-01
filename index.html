@@ -16,22 +16,90 @@
     <!-- Stylesheet for the image cropping component -->
     <link rel="stylesheet" href="https://aistudiocdn.com/react-image-crop@^11.0.10/dist/ReactCrop.css">
 
-    <!-- The importmap must be defined before any module scripts are loaded. -->
-    <script type="importmap">
+    <!-- Local stylesheets for localhost compatibility -->
+    <link rel="stylesheet" href="/styles/global.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <link rel="stylesheet" href="/styles/layouts.css">
+    <link rel="stylesheet" href="/components/ui/CapturedPieces.css">
+    <link rel="stylesheet" href="/components/Chessboard.css">
+    <link rel="stylesheet" href="/components/views/InitialView.css">
+    <link rel="stylesheet" href="/components/views/CameraView.css">
+    <link rel="stylesheet" href="/components/views/ImagePreview.css">
+    <link rel="stylesheet" href="/components/views/PdfView.css">
+    <link rel="stylesheet" href="/components/views/LoadingView.css">
+    <link rel="stylesheet" href="/components/views/ResultView.css">
+    <link rel="stylesheet" href="/components/views/SolveView.css">
+    <link rel="stylesheet" href="/components/ui/MoveHistory.css">
+    <link rel="stylesheet" href="/components/views/LoginView.css">
+    <link rel="stylesheet" href="/components/views/AdminView.css">
+    <link rel="stylesheet" href="/components/ui/UserMenu.css">
+    <link rel="stylesheet" href="/components/views/HistoryView.css">
+    <link rel="stylesheet" href="/components/ui/ConfirmationDialog.css">
+    <link rel="stylesheet" href="/components/views/SavedGamesView.css">
+    <link rel="stylesheet" href="/components/result/EditorBoard.css">
+    <link rel="stylesheet" href="/components/result/EditorControls.css">
+    <link rel="stylesheet" href="/components/result/UserPanel.css">
+    <link rel="stylesheet" href="/components/views/ProfileView.css">
+    <link rel="stylesheet" href="/components/ui/PieceSetSelectorModal.css">
+
+    <!-- Google Identity Services Script -->
+    <script src="https://accounts.google.com/gsi/client" async defer onload="onGoogleLibraryLoad()"></script>
+    <!-- Google API Client Script for Drive API -->
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    
+    <script>
+        // This function will be populated by the React app's AuthContext.
+        // It allows the GSI callback to trigger a login within the React state.
+        window.onGoogleSignIn = (credential) => {
+            console.error("onGoogleSignIn has not been initialized by the React application yet.");
+        };
+
+        // This function is the single source of truth for initializing the Google Sign-In client.
+        // It runs once when the GSI library has loaded.
+        function onGoogleLibraryLoad() {
+            if (typeof google === 'undefined' || !google.accounts) {
+                console.error("Google Identity Services library failed to load.");
+                return;
+            }
+
+            // Initialize the client. This MUST be called only once per page load.
+            google.accounts.id.initialize({
+                client_id: window.GOOGLE_CLIENT_ID,
+                callback: (response) => {
+                    // The callback is handled by the function our React app provides.
+                    window.onGoogleSignIn(response.credential);
+                },
+                // Explicitly setting auto_select to false is an extra layer of safety.
+                auto_select: false
+            });
+
+            // Check for an existing app session.
+            const sessionData = localStorage.getItem('mock_session');
+            if (sessionData) {
+                // If logged in, we MUST prevent the One Tap prompt from showing.
+                // This sets a cookie that the GSI library respects.
+                google.accounts.id.disableAutoSelect();
+            }
+            // We do not need an 'else' block. For logged-out users, the default
+            // behavior is correct: the prompt won't show automatically unless we call
+            // google.accounts.id.prompt(). The LoginView component will handle
+            // rendering the button for the user to click.
+        }
+    </script>
+<script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
     "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.17.0",
-    "react-image-crop": "https://aistudiocdn.com/react-image-crop@^11.0.10",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0",
+    "pdfjs-dist/": "https://aistudiocdn.com/pdfjs-dist@^5.4.149/",
     "chess.js": "https://aistudiocdn.com/chess.js@^1.4.0",
-    "pdfjs-dist/": "https://aistudiocdn.com/pdfjs-dist@^5.4.149/"
+    "react-image-crop": "https://aistudiocdn.com/react-image-crop@^11.0.10"
   }
 }
 </script>
-    
 </head>
 <body>
     <!-- The root DOM element where the React application will be mounted. -->
@@ -43,7 +111,10 @@
         </div>
     </div>
     
-    <!-- The main application script is loaded directly. -->
-    <script type="module" src="./index.tsx"></script>
+    <!-- Make the Google Client ID available globally for the pre-React script -->
+    <script>window.GOOGLE_CLIENT_ID = "974195773800-sil1nd8or5rprp2ef43kha29u2gbdg5j.apps.googleusercontent.com";</script>
+    
+    <!-- The main application script is loaded from a pre-compiled bundle. -->
+    <script type="module" src="/dist/bundle.js"></script>
 </body>
 </html>

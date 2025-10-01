@@ -4,25 +4,26 @@
 */
 import React from 'react';
 import type { BoardPiece, PieceColor } from '../../lib/types';
-import { PIECE_COMPONENTS, PIECE_NAMES } from '../../lib/chessConstants';
+import { PIECE_SETS, PIECE_NAMES } from '../../lib/chessConstants';
 import './CapturedPieces.css';
+
+interface CapturedPiecesProps {
+    color: PieceColor,
+    pieces: BoardPiece[],
+    scoreAdvantage: number,
+    pieceTheme: string;
+}
 
 /**
  * A UI component to display a list of captured pieces for one side,
  * along with the material advantage score for the opponent.
  *
  * @param props - The component's properties.
- * @param props.color - The color of the pieces that have been captured (e.g., 'w' for captured white pieces).
- * @param props.pieces - An array of the captured piece objects.
- * @param props.scoreAdvantage - The material advantage score of the player who captured these pieces.
  */
-const CapturedPieces = ({ color, pieces, scoreAdvantage }: {
-    color: PieceColor,
-    pieces: BoardPiece[],
-    scoreAdvantage: number
-}) => {
+const CapturedPieces = ({ color, pieces, scoreAdvantage, pieceTheme }: CapturedPiecesProps) => {
     // Determine the title based on the color of the captured pieces.
     const title = color === 'w' ? 'White pieces captured' : 'Black pieces captured';
+    const PIECE_COMPONENTS = PIECE_SETS[pieceTheme as keyof typeof PIECE_SETS] || PIECE_SETS['merida'];
 
     return (
         // The main container div. The class changes based on the color for specific styling.

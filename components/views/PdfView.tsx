@@ -5,9 +5,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactCrop, { type Crop } from 'react-image-crop';
 import type * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
-import { BackIcon, NextMoveIcon, PrevMoveIcon, CheckIcon, ZoomInIcon, ZoomOutIcon } from '../ui/Icons';
+import { BackIcon, NextMoveIcon, PrevMoveIcon, CheckIcon, ZoomInIcon, ZoomOutIcon, DeepScanIcon } from '../ui/Icons';
 import { usePdfPageRenderer } from '../../hooks/usePdfPageRenderer';
 import { usePdfThumbnails } from '../../hooks/usePdfThumbnails';
+import { usePdfDeepScan } from '../../hooks/usePdfDeepScan';
+import { db } from '../../lib/db';
+import { resizeAndExportImage } from '../../lib/utils';
+import type { BoundingBox } from '../../lib/types';
 import './PdfView.css';
 
 /**
@@ -35,6 +39,7 @@ const PdfView = ({
     const [sidebarWidth, setSidebarWidth] = useState(150);
     const [isResizing, setIsResizing] = useState(false);
     const [isConfirming, setIsConfirming] = useState(false);
+    const [boundingBoxesForCurrentPage, setBoundingBoxesForCurrentPage] = useState<BoundingBox[]>([]);
     
     // --- REFS ---
     const imgRef = useRef<HTMLImageElement>(null);
@@ -43,6 +48,7 @@ const PdfView = ({
     // --- CUSTOM HOOKS ---
     const { imgSrc, isPageRendering, imgNaturalSize } = usePdfPageRenderer(pdfDoc, initialPage);
     const { thumbnails, thumbnailsListRef, thumbnailRefCallback } = usePdfThumbnails(pdfDoc, initialPage, isPageRendering);
+    const { isDeepScanning, startDeepScan, cancelDeepScan } = usePdfDeepScan(pdfDoc, pdfId);
 
     // --- STATE CHANGE HANDLERS ---
     const changePage = (newPage: number) => {
@@ -69,6 +75,15 @@ const PdfView = ({
 
     // This effect clears the crop selection when the page changes.
     useEffect(() => { setCrop(undefined); setCompletedCrop(undefined); }, [initialPage]);
+
+    // Effect to fetch puzzles for the current page from DB
+    useEffect(() => {
+        const fetchBoards = async () => {
+            const data = await db.getPdfPuzzles(pdfId, initialPage);
+            setBoundingBoxesForCurrentPage(data?.boundingBoxes || []);
+        };
+        fetchBoards();
+    }, [pdfId, initialPage]);
 
     // Handle sidebar resizing for desktop view.
     useEffect(() => {
@@ -114,16 +129,68 @@ const PdfView = ({
         
         ctx.drawImage(image, cropX, cropY, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
 
-        canvas.toBlob(blob => {
-            if (blob) {
-                onCropConfirm(
-                    new File([blob], "cropped_puzzle.png", { type: "image/png" }),
-                    { page: initialPage, totalPages: pdfDoc?.numPages || initialPage }
-                );
-            }
-        }, "image/png");
+        const optimizedFile = await resizeAndExportImage(canvas, {
+            maxDimension: 1024,
+            type: 'image/webp',
+            quality: 0.7,
+            fileName: 'cropped_puzzle.webp'
+        });
+
+        if (optimizedFile) {
+            onCropConfirm(
+                optimizedFile,
+                { page: initialPage, totalPages: pdfDoc?.numPages || initialPage }
+            );
+        } else {
+            setIsConfirming(false);
+        }
     };
     
+    const handlePuzzleClick = async (bbox: BoundingBox) => {
+        setIsConfirming(true);
+        const image = imgRef.current;
+        if (!image) {
+            setIsConfirming(false);
+            return;
+        }
+
+        const sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = image.naturalWidth;
+        sourceCanvas.height = image.naturalHeight;
+        sourceCanvas.getContext('2d')?.drawImage(image, 0, 0);
+
+        const canvas = document.createElement("canvas");
+        const sx = sourceCanvas.width * bbox.x;
+        const sy = sourceCanvas.height * bbox.y;
+        const sWidth = sourceCanvas.width * bbox.width;
+        const sHeight = sourceCanvas.height * bbox.height;
+        canvas.width = sWidth;
+        canvas.height = sHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+            setIsConfirming(false);
+            return;
+        }
+
+        ctx.drawImage(sourceCanvas, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+        
+        const optimizedFile = await resizeAndExportImage(canvas, {
+            maxDimension: 1024,
+            type: 'image/webp',
+            quality: 0.7,
+            fileName: 'puzzle_from_pdf.webp'
+        });
+
+        if (optimizedFile) {
+            onCropConfirm(
+                optimizedFile,
+                { page: initialPage, totalPages: pdfDoc?.numPages || initialPage }
+            );
+        } else {
+            setIsConfirming(false);
+        }
+    };
+
     const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setPageInput(e.target.value);
 
     const handleJumpToPage = () => {
@@ -146,10 +213,19 @@ const PdfView = ({
 
     return (
         <div className="pdf-viewer-container">
-            {(isDocLoading || isPageRendering) && (
+            {(isDocLoading || isPageRendering || isDeepScanning) && (
                 <div className="pdf-loading-overlay">
                     <div className="spinner"></div>
-                    <p>{isDocLoading ? 'Loading PDF Document...' : 'Rendering Page...'}</p>
+                    <p>
+                        {isDocLoading ? 'Loading PDF Document...' : 
+                         isDeepScanning ? `Scanning page for puzzles...` : 
+                         'Rendering Page...'}
+                    </p>
+                    {isDeepScanning && (
+                        <>
+                            <button onClick={cancelDeepScan} className="btn btn-secondary btn-cancel-scan">Cancel</button>
+                        </>
+                    )}
                 </div>
             )}
             <aside className="pdf-sidebar" style={{ width: `${sidebarWidth}px` }}>
@@ -179,6 +255,11 @@ const PdfView = ({
                 <div className="pdf-toolbar">
                     <button onClick={onBack} className="btn-icon" aria-label="Go Back" title="Go back to the home screen" disabled={isConfirming}><BackIcon/></button>
                     <div className="pdf-toolbar-center">
+                        <button onClick={() => startDeepScan(initialPage, () => {
+                            db.getPdfPuzzles(pdfId, initialPage).then(data => {
+                                setBoundingBoxesForCurrentPage(data?.boundingBoxes || []);
+                            });
+                        })} className="btn-icon btn-deep-scan" title="Scan Page for Puzzles"><DeepScanIcon /></button>
                         <div className="pdf-zoom-controls">
                             <button onClick={() => changeZoom(z => Math.max(0.25, z - 0.25))} disabled={zoom <= 0.25} className="btn-icon" title="Zoom out"><ZoomOutIcon /></button>
                             <button onClick={() => changeZoom(z => Math.min(4.0, z + 0.25))} disabled={zoom >= 4.0} className="btn-icon" title="Zoom in"><ZoomInIcon /></button>
@@ -198,22 +279,42 @@ const PdfView = ({
                 </div>
                  <div className="pdf-page-view" ref={pageViewRef}>
                     {imgSrc && (
-                        <ReactCrop
-                            crop={crop}
-                            onChange={c => setCrop(c)}
-                            onComplete={c => setCompletedCrop(c)}
-                        >
-                            <img
-                                ref={imgRef}
-                                src={imgSrc}
-                                alt={`Page ${initialPage}`}
-                                style={{
-                                    display: 'block',
-                                    width: imgNaturalSize.width ? `${imgNaturalSize.width * zoom}px` : 'auto',
-                                    height: 'auto',
-                                }}
-                            />
-                        </ReactCrop>
+                        <div className="pdf-page-wrapper">
+                            <ReactCrop
+                                crop={crop}
+                                onChange={c => setCrop(c)}
+                                onComplete={c => setCompletedCrop(c)}
+                            >
+                                <img
+                                    ref={imgRef}
+                                    src={imgSrc}
+                                    alt={`Page ${initialPage}`}
+                                    style={{
+                                        display: 'block',
+                                        width: imgNaturalSize.width ? `${imgNaturalSize.width * zoom}px` : 'auto',
+                                        height: 'auto',
+                                    }}
+                                />
+                            </ReactCrop>
+                            <div className="puzzle-overlay-container">
+                                {boundingBoxesForCurrentPage.map((bbox, index) => (
+                                    <div
+                                        key={index}
+                                        className="puzzle-overlay"
+                                        style={{
+                                            left: `${bbox.x * 100}%`,
+                                            top: `${bbox.y * 100}%`,
+                                            width: `${bbox.width * 100}%`,
+                                            height: `${bbox.height * 100}%`,
+                                        }}
+                                        onClick={() => handlePuzzleClick(bbox)}
+                                        title="Click to load this puzzle"
+                                    >
+                                        <div className="puzzle-overlay-text">{index + 1}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     )}
                 </div>
             </main>

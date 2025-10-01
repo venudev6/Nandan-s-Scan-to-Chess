@@ -2,77 +2,8 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-.result-view-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 1rem; /* Gap between header and main content */
-    padding: 1rem;
-    flex-grow: 1;
-    min-height: 0;
-}
 
-/* Container for the three columns: User Panel, Board, Controls */
-.result-view-container {
-    display: grid;
-    grid-template-rows: minmax(0, 1fr); /* Ensure rows can shrink */
-    gap: 1.5rem;
-    width: 100%;
-    max-width: 1400px;
-    margin: 0 auto;
-    align-items: stretch; /* Align items to fill the vertical space */
-    flex-grow: 1; /* Make the grid container fill the card */
-    min-height: 0;
-}
-
-/* Logged-in view: 3 columns */
-.result-view-container.logged-in {
-    grid-template-columns: 240px 1fr 320px;
-    grid-template-areas: "user-panel board-panel controls-panel";
-}
-
-/* Guest view: 2 columns */
-.result-view-container.guest {
-    grid-template-columns: 1fr 320px;
-    grid-template-areas: "board-panel controls-panel";
-}
-
-/* RESPONSIVE OVERRIDES */
-@media (max-width: 1024px) {
-    .result-view-container.logged-in {
-        grid-template-columns: 1fr 300px;
-        grid-template-areas: "board-panel controls-panel";
-    }
-    .result-view-container.guest {
-        grid-template-columns: 1fr 300px;
-    }
-}
-
-@media (max-width: 768px) and (orientation: portrait) {
-    .result-view-card {
-        padding: 0;
-        gap: 0;
-    }
-    
-    .result-view-container.logged-in,
-    .result-view-container.guest {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-            "board-panel"
-            "controls-panel";
-        grid-template-rows: auto 1fr; /* Board takes auto height, controls fill rest */
-        gap: 0;
-        max-width: 100%;
-        overflow-y: hidden; /* Prevent double scrollbars */
-    }
-    
-    /* The UserPanel component itself handles becoming the top bar for logged-in users */
-    .result-view-container.logged-in {
-         grid-template-areas:
-            "user-panel"
-            "board-panel"
-            "controls-panel";
-        grid-template-rows: auto auto 1fr; /* User panel, then board, then controls fill rest */
-    }
-}
+/*
+  The main layout for this view is now handled globally in styles/layouts.css
+  to ensure consistency with the SolveView.
+*/

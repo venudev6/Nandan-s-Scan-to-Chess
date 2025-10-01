@@ -4,6 +4,7 @@
 */
 import { useState } from 'react';
 import { soundManager } from '../lib/SoundManager';
+import { PieceTheme, PIECE_SET_NAMES } from '../lib/chessConstants';
 
 /**
  * A custom hook to manage and persist global user settings.
@@ -25,6 +26,14 @@ export const useAppSettings = () => {
         return localStorage.getItem('boardTheme') || 'default';
     });
 
+    const [pieceTheme, setPieceTheme] = useState<PieceTheme>(() => {
+        const savedTheme = localStorage.getItem('pieceTheme');
+        if (savedTheme && PIECE_SET_NAMES.includes(savedTheme)) {
+            return savedTheme as PieceTheme;
+        }
+        return 'staunty';
+    });
+
     const handleCooldownChange = (seconds: number) => {
         setAnalysisCooldown(seconds);
         localStorage.setItem('analysisCooldown', String(seconds));
@@ -40,12 +49,19 @@ export const useAppSettings = () => {
         localStorage.setItem('boardTheme', theme);
     };
 
+    const handlePieceThemeChange = (theme: PieceTheme) => {
+        setPieceTheme(theme);
+        localStorage.setItem('pieceTheme', theme);
+    };
+
     return {
         analysisCooldown,
         boardTheme,
         soundEnabled,
+        pieceTheme,
         handleCooldownChange,
         handleBoardThemeChange,
         handleSoundToggle,
+        handlePieceThemeChange,
     };
 };

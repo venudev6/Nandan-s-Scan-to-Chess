@@ -50,20 +50,34 @@
 }
 .user-menu-header {
     padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+}
+.user-menu-header:hover {
+    background-color: #f9fafb;
 }
 .user-menu-header.settings-header {
     padding: 0.5rem 1rem;
     gap: 0.5rem;
+    cursor: default;
 }
-.user-menu-header h3 {
+.user-menu-header.settings-header:hover {
+    background-color: transparent;
+}
+.user-menu-header.settings-header h3 {
     font-size: 1.1rem;
     margin: 0;
     flex-grow: 1;
     text-align: center;
+    /* Account for back button width to keep title centered */
+    padding-right: 36px;
 }
 .user-menu-header .back-button {
     background: none;
@@ -73,14 +87,24 @@
     margin-left: -0.5rem;
     color: var(--text-muted-color);
 }
+.user-menu-header .back-button svg {
+    width: 24px;
+    height: 24px;
+}
 .user-menu-header .back-button:hover {
     color: var(--text-color);
 }
+.user-avatar svg {
+    width: 36px;
+    height: 36px;
+    color: var(--text-muted-color);
+}
 .user-info {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
 }
-.user-email {
+.user-name {
     font-weight: 600;
     font-size: 0.9rem;
     color: var(--text-color);
@@ -92,7 +116,7 @@
 }
 .user-menu-list.settings-list {
     padding: 1rem;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 .user-menu-item {
     display: flex;
@@ -124,11 +148,35 @@
     height: 16px;
     color: var(--text-muted-color);
 }
+.user-menu-separator {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 0.5rem 0.75rem;
+}
 /* Settings Panel Styles */
 .setting-item {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
+}
+.setting-item-button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+}
+.setting-item-button:hover .setting-label,
+.setting-item-button:hover .setting-value {
+    color: var(--primary-color);
+}
+.setting-item-button:hover .setting-label svg,
+.setting-item-button:hover .setting-value svg {
+    color: var(--primary-color);
 }
 .setting-label {
     display: flex;
@@ -142,6 +190,17 @@
     height: 20px;
     color: var(--text-muted-color);
 }
+.setting-value {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.9rem;
+    color: var(--text-muted-color);
+}
+.setting-value svg {
+    width: 16px;
+    height: 16px;
+}
 .setting-sub-item {
     display: flex;
     justify-content: space-between;
@@ -151,8 +210,9 @@
 .setting-sub-item label {
     font-size: 0.875rem;
 }
-.setting-sub-item input[type="range"] {
-    width: 120px;
+.setting-sub-item label strong {
+    font-weight: 600;
+    color: var(--text-color);
 }
 /* Theme Selector in User Menu */
 .theme-selector-group {
@@ -203,3 +263,41 @@
 }
 .role-badge.role-admin { background-color: #eef2ff; color: #4338ca; }
 .role-badge.role-user { background-color: #f0fdf4; color: #15803d; }
+
+/* Custom Slider Styles */
+.setting-sub-item input[type="range"] {
+  -webkit-appearance: none;
+  width: 120px;
+  height: 8px;
+  background: #dbeafe; /* light blue track */
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.setting-sub-item input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #3b82f6; /* solid blue thumb */
+  border-radius: 50%;
+  border: none;
+}
+
+.setting-sub-item input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #3b82f6;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
+
+.setting-sub-item input[type="range"]::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  background: #dbeafe;
+  border-radius: 4px;
+  border: none;
+}
