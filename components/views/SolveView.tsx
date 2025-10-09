@@ -429,7 +429,7 @@ const SolveView = ({
                         Analysis with Lichess.org {cooldown > 0 ? `(${Math.floor(cooldown/60)}:${String(cooldown%60).padStart(2,'0')})` : ''}
                         </a>
                         <div className="result-actions">
-                            <button className="btn btn-secondary btn-back" onClick={() => { soundManager.play('UI_CLICK'); onBack(); }} title={backButtonTitle}><BackIcon/> Back</button>
+                            <button className="btn btn-secondary btn-back" onClick={() => { soundManager.play('UI_CLICK'); onBack(); }} title={backButtonTitle} aria-label={backButtonTitle}><BackIcon/> Back</button>
                             <button className="btn btn-secondary" onClick={() => { soundManager.play('UI_CLICK'); onHome(); }} aria-label="Go to Home Screen" title="Return to the home screen">Home</button>
                             <button className="btn btn-analyze" onClick={() => { soundManager.play('UI_CLICK'); onNextPuzzle(); }} title={nextButtonTitle}>
                                 {nextButtonText}

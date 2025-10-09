@@ -37,12 +37,28 @@
     background-color: #f9fafb;
 }
 
-
-.user-panel-header svg {
+.user-panel-header .user-avatar {
     width: 40px;
     height: 40px;
-    color: var(--text-muted-color);
+    border-radius: 50%;
+    overflow: hidden;
+    background-color: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+}
+
+.user-panel-header .user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-panel-header .user-avatar svg {
+    width: 24px;
+    height: 24px;
+    color: var(--text-muted-color);
 }
 
 .user-panel-header .user-info {
@@ -94,11 +110,89 @@
     color: var(--error-color);
 }
 
+/* Timing Breakdown Styles */
+.scan-timing-details {
+    padding-top: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+.scan-timing-details h4 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted-color);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+.scan-timing-details ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.scan-timing-details li {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+}
+.scan-timing-details li span {
+    color: var(--text-color);
+}
+.scan-timing-details li strong {
+    font-weight: 500;
+    color: var(--text-muted-color);
+    font-family: monospace;
+}
+
+/* Post-Scan Validations */
+.post-scan-validations {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.75rem;
+}
+
+.post-scan-validations h4 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted-color);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.post-scan-validations ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.post-scan-validations li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-color);
+    line-height: 1.4;
+}
+
+.post-scan-validations li svg {
+    width: 16px;
+    height: 16px;
+    color: var(--success-color);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+
 .user-panel-nav {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    padding-top: 0.75rem;
+    padding-top: 0;
     overflow-y: auto;
     flex-grow: 1; /* Make the nav grow to push the logout button down */
 }
@@ -260,6 +354,11 @@
   border-radius: 4px;
   outline: none;
   cursor: pointer;
+}
+
+.user-panel-settings .setting-sub-item input[type="range"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .user-panel-settings .setting-sub-item input[type="range"]::-webkit-slider-thumb {

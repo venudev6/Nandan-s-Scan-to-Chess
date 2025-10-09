@@ -9,12 +9,13 @@ import type { StoredGame, StoredPdf, StoredPdfRecord, StoredPdfPuzzles } from '.
 
 export const db = {
     name: 'ChessPuzzlesDB',
-    version: 7, // Incremented version for pdfPuzzles store
+    version: 8, // Incremented version for keyValuePairs store
     stores: {
         pdfs: 'pdfs',
         games: 'games', // This store is for user-bookmarked games
         history: 'history', // This store is for auto-saved games
         pdfPuzzles: 'pdfPuzzles', // New store for deep scan results
+        keyValuePairs: 'keyValuePairs', // Generic store for settings, recovery data, etc.
     },
     _db: null as IDBDatabase | null, // Internal property to hold the database connection.
 
@@ -81,11 +82,56 @@ export const db = {
                     }
                 }
 
-                // Version 7: No schema changes needed for adding syncStatus and driveId to 'pdfs' store.
-                // IndexedDB allows adding properties to objects without altering the schema.
+                if (oldVersion < 7) {
+                  // Version 7: No schema changes needed for adding syncStatus and driveId to 'pdfs' store.
+                  // IndexedDB allows adding properties to objects without altering the schema.
+                }
+
+                if (oldVersion < 8) {
+                    if (!db.objectStoreNames.contains(this.stores.keyValuePairs)) {
+                        db.createObjectStore(this.stores.keyValuePairs, { keyPath: 'key' });
+                    }
+                }
             };
         });
     },
+    
+    // --- Key-Value Pair Methods ---
+    
+    /**
+     * Saves or updates a value in the generic key-value store.
+     * @param key The unique key for the data.
+     * @param value The data to store.
+     */
+    async saveKeyValue(key: string, value: any): Promise<void> {
+        if (!this._db) await this.init();
+        return new Promise<void>((resolve, reject) => {
+            const transaction = this._db!.transaction(this.stores.keyValuePairs, 'readwrite');
+            const store = transaction.objectStore(this.stores.keyValuePairs);
+            const request = store.put({ key, value });
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(`Transaction failed to save key-value pair: ${(event.target as any).error}`);
+        });
+    },
+
+    /**
+     * Retrieves a value from the generic key-value store.
+     * @param key The key of the data to retrieve.
+     * @returns A promise that resolves with the value, or null if not found.
+     */
+    async getKeyValue<T>(key: string): Promise<T | null> {
+        if (!this._db) await this.init();
+        return new Promise<T | null>((resolve, reject) => {
+            const transaction = this._db!.transaction(this.stores.keyValuePairs, 'readonly');
+            const store = transaction.objectStore(this.stores.keyValuePairs);
+            const request = store.get(key);
+            request.onsuccess = () => {
+                resolve(request.result ? request.result.value : null);
+            };
+            request.onerror = () => reject("Failed to get key-value pair");
+        });
+    },
+
 
     /**
      * Saves a new PDF file and its thumbnail to the database.

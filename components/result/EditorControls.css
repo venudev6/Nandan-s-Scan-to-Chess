@@ -63,7 +63,7 @@
 .board-actions {
     display: flex;
     gap: 0.5rem;
-    align-items: stretch;
+    align-items: stretch; /* Make all items in the row equal height */
 }
 .palette-group {
     position: relative;
@@ -103,31 +103,27 @@
     height: 28px;
     padding: 0;
 }
-.result-actions-wrapper {
+
+/* Action Buttons at the bottom */
+.result-actions.control-section {
     margin-top: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    padding-top: 1rem; /* Add some space above */
-}
-.result-actions {
-    display: flex;
+    padding: 1rem 0 0 0;
+    border-top: 1px solid var(--border-color);
+    background: transparent;
+    box-shadow: none;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 0;
     flex-direction: row;
     gap: 1rem;
+    align-items: flex-end; /* Align to the bottom */
 }
-.result-actions .btn {
-    flex-basis: 0;
-}
-.result-actions .btn.btn-back {
-    flex-grow: 1;
-}
-.result-actions .btn-primary {
-    flex-grow: 2;
-}
-.result-actions .btn-analyse-large {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
+.result-actions.control-section .btn { flex-basis: 0; }
+.result-actions.control-section .btn-back { flex-grow: 0; }
+.result-actions.control-section .btn-primary { flex-grow: 2; }
+
+
 .chess-turn-toggle {
     position: relative;
 }
@@ -180,29 +176,88 @@
     transform: translateX(36px);
 }
 .remove-zone {
-  min-height: 44px;
-  border: 2px dashed var(--dashed-border-color);
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease-in-out;
-  color: var(--text-muted-color);
-  flex-grow: 1;
-  flex-basis: 0;
-  background-color: #f9fafb;
-}
-.remove-zone.drag-over, .remove-zone.dragging-active {
-  background-color: #fee2e2;
-  border-color: var(--error-color);
-  color: var(--error-color);
-  transform: scale(1.05);
-  border-style: solid;
+    height: 44px; /* Fixed height */
+    border: 2px dashed var(--dashed-border-color);
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+    color: var(--text-muted-color);
+    flex-grow: 1;
+    flex-basis: 0;
+    background-color: #f9fafb;
+    padding: 2px;
+    gap: 2px;
 }
 .remove-zone svg {
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+.remove-zone span {
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+/* Integrated FEN Input */
+.fen-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.fen-header svg {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted-color);
+}
+.fen-input-wrapper {
+    gap: 0;
+    align-items: stretch; /* Make input and button same height */
+}
+.fen-input-wrapper .fen-input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: none;
+    height: auto; /* Allow stretch to determine height */
+}
+.fen-input-wrapper .copy-fen-btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    background-color: #f9fafb;
+    border: 1px solid var(--border-color);
+    height: auto; /* Allow stretch to determine height */
+}
+.fen-input-wrapper .copy-fen-btn:disabled {
+    cursor: not-allowed;
+    background-color: #e5e7eb;
+    color: #9ca3af;
+    opacity: 1;
+}
+
+/* Sanitization/Correction Banner */
+.sanitization-banner {
+    margin-bottom: 0.75rem;
+    align-items: flex-start;
+}
+.sanitization-banner .validation-list {
+    list-style-type: disc;
+    padding-left: 1.25rem;
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+.sanitization-banner button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: inherit;
+    align-self: flex-start;
+    padding: 0 0.25rem;
+    margin-left: 0.5rem;
 }
 
 @media (max-width: 768px) and (orientation: portrait) {

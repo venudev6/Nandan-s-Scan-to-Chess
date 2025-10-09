@@ -138,7 +138,7 @@ const ImagePreview = ({ imageFile, onConfirm, onBack }: {
             <div className="preview-controls">
                 <p>Adjust the selection to tightly crop the chessboard.</p>
                 <div className="preview-button-group">
-                    <button className="btn btn-secondary" onClick={onBack} title="Go back">
+                    <button className="btn btn-secondary" onClick={onBack} title="Go back" aria-label="Go back">
                         <BackIcon /> Back
                     </button>
                     <button className="btn btn-primary" onClick={handleConfirm} disabled={!completedCrop?.width || !completedCrop?.height || isConfirming} title="Confirm selection and start analysis">

@@ -3,11 +3,31 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
+.profile-view .admin-header {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.profile-view .admin-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+.profile-view .admin-header .btn-secondary {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
 .profile-view .profile-form {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    margin-top: 1.5rem;
 }
 
 .profile-view .form-group {
@@ -42,6 +62,60 @@
     min-height: 80px;
 }
 
+.profile-picture-section {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+.profile-picture-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 2px solid var(--border-color);
+    position: relative;
+}
+.profile-picture-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.profile-picture-preview svg {
+    width: 48px;
+    height: 48px;
+    color: var(--text-muted-color);
+}
+.profile-picture-edit-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0,0,0,0.5);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+}
+.profile-picture-preview:hover .profile-picture-edit-overlay {
+    opacity: 1;
+}
+.profile-picture-edit-overlay svg {
+    width: 24px;
+    height: 24px;
+    color: white;
+}
+
+.profile-picture-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
 .profile-view .form-actions {
     display: flex;
     justify-content: flex-end;
@@ -56,4 +130,138 @@
     border-radius: 0.5rem;
     font-size: 0.875rem;
     text-align: center;
+}
+
+/* Solve Controls Section */
+.solve-controls-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.solve-controls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.solve-controls-header h2 {
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+.solve-control-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+}
+.solve-control-item.disabled .label-group {
+    opacity: 0.6;
+}
+
+.solve-control-item .label-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.solve-control-item .label {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.solve-control-item .label .lock-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted-color);
+}
+
+.solve-control-item .description {
+    font-size: 0.875rem;
+    color: var(--text-muted-color);
+    padding-left: 24px;
+}
+
+/* PIN Modal styles */
+.pin-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+}
+
+.pin-modal-content {
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 1rem;
+    width: 90%;
+    max-width: 380px;
+    text-align: center;
+    animation: slideUp 0.3s ease;
+}
+
+.pin-modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+.pin-modal-content p {
+    color: var(--text-muted-color);
+    margin-bottom: 1.5rem;
+}
+.pin-input-group {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+.pin-input {
+    width: 40px;
+    height: 50px;
+    text-align: center;
+    font-size: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+}
+.pin-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+.pin-error {
+    color: var(--error-color);
+    font-size: 0.875rem;
+    min-height: 1.25rem;
+    margin-bottom: 1rem;
+}
+.forgot-pin-link {
+    font-size: 0.875rem;
+    color: var(--primary-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-top: 1.5rem;
+}
+.forgot-pin-link:hover {
+    text-decoration: underline;
+}
+
+.pin-reset-info {
+    font-size: 0.9rem;
+    text-align: left;
+    background-color: #eef2ff;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+.pin-reset-info code {
+    background-color: #e0e7ff;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.25rem;
+    font-weight: bold;
 }

@@ -1,4 +1,4 @@
-/*
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
@@ -30,10 +30,15 @@
 .preview-button-group {
     display: flex;
     gap: 1rem;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
+    width: 100%;
+    max-width: 400px;
 }
+.preview-button-group .btn-primary {
+    flex-grow: 1;
+}
+
 
 /* React Crop Overrides for better visibility and smoother movement */
 .ReactCrop__crop-selection {

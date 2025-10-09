@@ -68,7 +68,7 @@ const CameraView = ({ onCapture, onBack }: {
      * Handles the capture button click. It draws the current video frame to a canvas,
      * converts the canvas to a PNG, and calls the onCapture callback.
      */
-    const handleCapture = () => {
+    const handleCapture = async () => {
         if (videoRef.current) {
             // Create a temporary canvas element.
             const canvas = document.createElement('canvas');
@@ -80,8 +80,13 @@ const CameraView = ({ onCapture, onBack }: {
             
             // Convert the canvas to a data URL, then to a Blob, and finally to a File.
             const dataUrl = canvas.toDataURL('image/png');
-            const blob = dataUrlToBlob(dataUrl);
-            onCapture(new File([blob], 'capture.png', { type: 'image/png' }));
+            try {
+                const blob = await dataUrlToBlob(dataUrl);
+                onCapture(new File([blob], 'capture.png', { type: 'image/png' }));
+            } catch (e) {
+                console.error("Failed to capture image:", e);
+                // Optionally show an error to the user
+            }
         }
     };
 
@@ -102,7 +107,7 @@ const CameraView = ({ onCapture, onBack }: {
                 <video ref={videoRef} autoPlay playsInline muted />
             </div>
             <div className="camera-controls">
-                <button className="btn btn-secondary" onClick={onBack} title="Go back"><BackIcon /> Back</button>
+                <button className="btn btn-secondary" onClick={onBack} title="Go back" aria-label="Go back"><BackIcon /> Back</button>
                 <button className="capture-btn" onClick={handleCapture} aria-label="Take picture" title="Capture image"></button>
             </div>
         </div>

@@ -253,7 +253,7 @@ const PdfView = ({
             <div className={`pdf-sidebar-resizer ${isResizing ? 'is-resizing' : ''}`} onMouseDown={handleResizeMouseDown} />
             <main className="pdf-main">
                 <div className="pdf-toolbar">
-                    <button onClick={onBack} className="btn-icon" aria-label="Go Back" title="Go back to the home screen" disabled={isConfirming}><BackIcon/></button>
+                    <button onClick={onBack} className="btn btn-secondary" aria-label="Go Back" title="Go back to the home screen" disabled={isConfirming}><BackIcon/> Back</button>
                     <div className="pdf-toolbar-center">
                         <button onClick={() => startDeepScan(initialPage, () => {
                             db.getPdfPuzzles(pdfId, initialPage).then(data => {

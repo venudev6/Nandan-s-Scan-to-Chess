@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BackIcon, TrashIcon, CopyIcon, CheckIcon, RescanIcon } from '../ui/Icons';
+import { BackIcon, TrashIcon, CopyIcon, CheckIcon, RescanIcon, LockIcon } from '../ui/Icons';
 import { soundManager } from '../../lib/SoundManager';
 import { PIECE_SETS, PIECE_NAMES } from '../../lib/chessConstants';
 import type { BoardPiece, PieceColor, PieceSymbol, AnalysisDetails } from '../../lib/types';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import './EditorControls.css';
 
 type HeldPiece = {
@@ -20,12 +21,12 @@ interface EditorControlsProps {
     onRescan: () => void;
     turn: PieceColor;
     setTurn: React.Dispatch<React.SetStateAction<"w" | "b">>;
-    setSanitizationMessage: (message: string | null) => void;
+    setSanitizationMessages: (messages: string[] | null) => void;
     handlePalettePointerDown: (piece: BoardPiece, e: React.PointerEvent) => void;
     handleRemoveClick: () => void;
     heldPiece: HeldPiece | null;
     ghostPosition: { x: number; y: number } | null;
-    sanitizationMessage: string | null;
+    sanitizationMessages: string[] | null;
     analysisDetails: AnalysisDetails;
     fen: string;
     handleFenChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -33,6 +34,7 @@ interface EditorControlsProps {
     onBack: () => void;
     onAnalyze: (fen: string) => void;
     pieceTheme: string;
+    appSettings: ReturnType<typeof useAppSettings>;
 }
 
 const EditorControls = ({
@@ -41,19 +43,20 @@ const EditorControls = ({
     onRescan,
     turn,
     setTurn,
-    setSanitizationMessage,
+    setSanitizationMessages,
     handlePalettePointerDown,
     handleRemoveClick,
     heldPiece,
     ghostPosition,
-    sanitizationMessage,
+    sanitizationMessages,
     analysisDetails,
     fen,
     handleFenChange,
     isFenValid,
     onBack,
     onAnalyze,
-    pieceTheme
+    pieceTheme,
+    appSettings
 }: EditorControlsProps) => {
 
     const [showCopied, setShowCopied] = useState(false);
@@ -80,6 +83,7 @@ const EditorControls = ({
     }, [openPalette]);
     
     const copyFen = () => {
+        if (appSettings.fenCopyLocked) return;
         navigator.clipboard.writeText(fen).then(() => {
             soundManager.play('UI_CLICK');
             setShowCopied(true);
@@ -115,7 +119,7 @@ const EditorControls = ({
                             id="turn-toggle-checkbox"
                             checked={turn === 'b'}
                             onChange={() => {
-                                setSanitizationMessage(null);
+                                setSanitizationMessages(null);
                                 setTurn(prev => (prev === 'w' ? 'b' : 'w'));
                             }}
                             aria-label="Toggle turn to move"
@@ -159,21 +163,30 @@ const EditorControls = ({
                 </div>
             </div>
             <div className="control-section fen-section">
-                {sanitizationMessage && (
-                    <div className="sanitization-banner" onClick={() => setSanitizationMessage(null)}>
-                        <strong>Notice:</strong> {sanitizationMessage}
+                 {sanitizationMessages && (
+                    <div className="info-banner sanitization-banner">
+                        <div>
+                            <strong>Initial FEN Corrections:</strong>
+                            <ul className="validation-list">
+                                {sanitizationMessages.map((msg, i) => <li key={i}>{msg}</li>)}
+                            </ul>
+                        </div>
+                        <button onClick={() => setSanitizationMessages(null)}>&times;</button>
                     </div>
                 )}
-                <h4>Position (FEN)</h4>
+                <h4 className="fen-header">
+                    Position (FEN)
+                    {appSettings.fenCopyLocked && <LockIcon />}
+                </h4>
                 <div className={`fen-input-wrapper ${!isFenValid ? 'invalid' : ''}`}>
-                    <input type="text" value={fen} onChange={handleFenChange} aria-label="FEN string of the current position" title={fen} />
-                    <button onClick={copyFen} className="btn-icon copy-fen-btn" aria-label="Copy FEN to clipboard" title="Copy FEN">
+                    <input type="text" className="fen-input" value={fen} onChange={handleFenChange} aria-label="FEN string of the current position" title={fen} />
+                    <button onClick={copyFen} className="btn-icon copy-fen-btn" aria-label="Copy FEN to clipboard" title={appSettings.fenCopyLocked ? "Unlock in Profile settings to enable" : "Copy FEN"} disabled={appSettings.fenCopyLocked}>
                         {showCopied ? <CheckIcon /> : <CopyIcon />}
                     </button>
                 </div>
             </div>
             <div className="control-section result-actions">
-                <button className="btn btn-secondary btn-back" onClick={onBack} title="Go back to the previous screen">
+                <button className="btn btn-secondary btn-back" onClick={onBack} title="Go back to the previous screen" aria-label="Go back">
                     <BackIcon /> Back
                 </button>
                 <button className="btn btn-primary" onClick={() => onAnalyze(fen)} disabled={!isFenValid} title="Analyze this position">

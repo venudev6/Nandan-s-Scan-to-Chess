@@ -1,0 +1,56 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+.update-prompt-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1f2937; /* gray-800 */
+  color: #f9fafb; /* gray-50 */
+  padding: 0.75rem 1.25rem;
+  border-radius: 9999px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+  animation: slide-up-toast 0.5s ease-out forwards;
+}
+
+@keyframes slide-up-toast {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.update-prompt-toast svg {
+  width: 20px;
+  height: 20px;
+  color: var(--success-color);
+}
+
+.update-prompt-toast button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  padding: 0.3rem 0.8rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-left: 0.5rem;
+}
+
+.update-prompt-toast button:hover {
+  background-color: var(--primary-hover);
+}

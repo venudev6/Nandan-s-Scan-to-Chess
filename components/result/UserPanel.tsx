@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import React, { useState, useRef, useEffect } from 'react';
-import { UserCircleIcon, LogoutIcon, AccountIcon, BookmarkIcon, HistoryIcon, SettingsIcon, ChevronRightIcon, BoardIcon, GameplayIcon, ExternalLinkIcon } from '../ui/Icons';
+import { UserCircleIcon, LogoutIcon, AccountIcon, BookmarkIcon, HistoryIcon, SettingsIcon, ChevronRightIcon, BoardIcon, GameplayIcon, ExternalLinkIcon, LockIcon, CheckIcon } from '../ui/Icons';
 import type { User, AnalysisDetails } from '../../lib/types';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { PieceSetSelectorModal } from '../ui/PieceSetSelectorModal';
@@ -35,12 +35,22 @@ const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGames
         if (confidence >= 0.85) return 'accuracy-medium';
         return 'accuracy-low';
     };
+    
+    const timingStages: { key: keyof NonNullable<AnalysisDetails['timingSummary']>, name: string }[] = [
+        { key: 'image_hashing_ms', name: 'Image Hashing' },
+        { key: 'board_detection_ms', name: 'Board Detection' },
+        { key: 'perspective_warp_ms', name: 'Perspective Warp' },
+        { key: 'tile_slicing_ms', name: 'Tile Slicing' },
+        { key: 'gemini_classification_ms', name: 'Gemini Classification' },
+        { key: 'post_processing_ms', name: 'Post-Processing' },
+    ];
+
 
     if (!isLoggedIn || !user) {
         return (
             <aside className="user-panel guest-panel">
                 <div className="user-panel-header">
-                    <UserCircleIcon />
+                    <div className="user-avatar"><UserCircleIcon /></div>
                     <div className="user-info">
                         <span className="user-email">Guest User</span>
                         <span className="role-badge role-guest">Trial</span>
@@ -60,7 +70,9 @@ const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGames
         <aside className="user-panel">
             <PieceSetSelectorModal isOpen={isPieceSetModalOpen} onClose={() => setIsPieceSetModalOpen(false)} appSettings={appSettings} />
             <button className="user-panel-header" onClick={onProfileClick} title="View your profile">
-                <UserCircleIcon />
+                <div className="user-avatar">
+                    {user.photoUrl ? <img src={user.photoUrl} alt="User avatar" /> : <UserCircleIcon />}
+                </div>
                 <div className="user-info">
                     <span className="user-email" title={user.name || user.email}>{user.name || user.email}</span>
                     <span className={`role-badge role-${user.role}`}>{user.role}</span>
@@ -76,14 +88,51 @@ const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGames
                     )}
                     {analysisDetails && analysisDetails.confidence !== null && (
                          <div className="scan-stat">
-                            <span>Scan Accuracy</span>
+                            <span>Avg. Accuracy</span>
                             <strong className={getConfidenceClass(analysisDetails.confidence)}>
                                 {(analysisDetails.confidence * 100).toFixed(1)}%
                             </strong>
                         </div>
                     )}
+                    {analysisDetails?.postProcess?.minimumConfidence !== null && analysisDetails?.postProcess?.minimumConfidence !== undefined && (
+                        <div className="scan-stat">
+                            <span>Min. Accuracy</span>
+                            <strong className={getConfidenceClass(analysisDetails.postProcess.minimumConfidence)}>
+                                {(analysisDetails.postProcess.minimumConfidence * 100).toFixed(1)}%
+                            </strong>
+                        </div>
+                    )}
                 </div>
             )}
+            
+            {analysisDetails?.timingSummary && (
+                <div className="scan-timing-details">
+                    <h4>Scan Breakdown</h4>
+                    <ul>
+                        {timingStages.map(stage => {
+                            const duration = analysisDetails.timingSummary![stage.key];
+                            return duration !== undefined && duration > 0 && (
+                                <li key={stage.key}>
+                                    <span>{stage.name}</span>
+                                    <strong>{(duration / 1000).toFixed(2)}s</strong>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            )}
+
+            {analysisDetails?.postProcess?.autoFixes && analysisDetails.postProcess.autoFixes.length > 0 && (
+                <div className="post-scan-validations">
+                    <h4>Post-Scan Validations ({analysisDetails.postProcess.autoFixes.length})</h4>
+                    <ul>
+                        {analysisDetails.postProcess.autoFixes.map((fix, index) => (
+                            <li key={index}><CheckIcon /> {fix}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             <nav className="user-panel-nav">
                 {user.role === 'admin' && (
                     <button className="user-menu-item" onClick={onAdminPanelClick} title="Go to the Admin Panel">
@@ -148,6 +197,7 @@ const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGames
                             <div className="setting-sub-item">
                                 <label htmlFor="cooldown-slider-panel">
                                    Cooldown: <strong>{Math.floor(appSettings.analysisCooldown / 60)} min</strong>
+                                   {appSettings.cooldownLocked && <LockIcon />}
                                 </label>
                                  <input
                                     type="range"
@@ -158,7 +208,8 @@ const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGames
                                     value={appSettings.analysisCooldown}
                                     onChange={(e) => appSettings.handleCooldownChange(parseInt(e.target.value, 10))}
                                     aria-label="Analysis button cooldown time"
-                                    title="Set the cooldown time for external analysis links"
+                                    title={appSettings.cooldownLocked ? "Unlock in Profile settings to change" : "Set the cooldown time for external analysis links"}
+                                    disabled={appSettings.cooldownLocked}
                                 />
                             </div>
                         </div>

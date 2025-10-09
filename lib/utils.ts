@@ -7,6 +7,36 @@
 import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
 import { fenToBoardState } from './fenUtils';
 
+// Declare cv and cvReady on the window object for global access to OpenCV.js
+declare global {
+    interface Window {
+        cv: any;
+        cvReady: Promise<void>;
+        onOpenCvReady: () => void;
+    }
+}
+
+/**
+ * Converts an image file to a base64 encoded string, including the data URL prefix.
+ * @param file The file to convert.
+ * @returns A promise that resolves with the full data URL string (e.g., "data:image/png;base64,...").
+ */
+export const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                resolve(reader.result);
+            } else {
+                reject(new Error('Failed to read file as data URL.'));
+            }
+        };
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
+};
+
+
 /**
  * Converts an image file to a base64 encoded string.
  * This is necessary for embedding the image data directly into the Gemini API request.
@@ -98,36 +128,204 @@ export const resizeAndExportImage = (
 
 /**
  * Converts a data URL (e.g., from a canvas or FileReader) into a Blob object.
- * This implementation manually decodes the base64 string to avoid issues with
- * the fetch() API on very large data URLs.
+ * This implementation uses the modern `fetch` API, which correctly handles
+ * different encodings and is more robust than manual base64 decoding.
  * @param dataUrl The data URL string.
- * @returns The corresponding Blob.
+ * @returns A promise that resolves with the corresponding Blob.
  */
-export const dataUrlToBlob = (dataUrl: string): Blob => {
-    const parts = dataUrl.split(',');
-    if (parts.length !== 2) {
-        throw new Error('Invalid data URL.');
-    }
-    const mimeMatch = parts[0].match(/:(.*?);/);
-    if (!mimeMatch || mimeMatch.length < 2) {
-        throw new Error('Invalid data URL: mime type not found.');
-    }
-    const mimeType = mimeMatch[1];
-    const base64Data = parts[1];
-
+export const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
     try {
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        const response = await fetch(dataUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch data URL: ${response.statusText}`);
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        return new Blob([byteArray], { type: mimeType });
+        return await response.blob();
     } catch (e) {
-        console.error("Failed to decode base64 string", e);
-        throw new Error("Failed to decode base64 string.");
+        console.error("Failed to convert data URL to blob", e);
+        throw new Error("Failed to convert data URL to blob.");
     }
 };
+
+/**
+ * Converts a data URL into a File object.
+ * @param dataUrl The data URL string.
+ * @param fileName The desired filename for the resulting File.
+ * @returns A promise that resolves with the corresponding File object.
+ */
+export const dataUrlToFile = async (dataUrl: string, fileName: string): Promise<File> => {
+    const blob = await dataUrlToBlob(dataUrl);
+    return new File([blob], fileName, { type: blob.type });
+};
+
+
+/**
+ * Slices a warped chessboard image into 64 tiles using OpenCV.js. It performs
+ * pre-processing to filter out empty tiles, resize piece tiles, and convert
+ * them to an efficient format before they are sent to the Gemini API.
+ * @param imageFile The warped image file of a chessboard.
+ * @returns A promise resolving to an array of 64 objects, each containing the
+ *          square name and either a WebP data URL or the string 'empty'.
+ */
+export const sliceImageToTiles = async (imageFile: File): Promise<{ square: string, dataUrl: string | 'empty' }[]> => {
+    await window.cvReady;
+    const cv = window.cv;
+    const matsToClean: any[] = [];
+
+    try {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(imageFile);
+        img.src = objectUrl;
+        await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = reject;
+        });
+        URL.revokeObjectURL(objectUrl);
+
+        const srcMat = cv.imread(img);
+        matsToClean.push(srcMat);
+
+        // For best results, resize to a consistent, moderately high resolution for slicing.
+        const size = 512;
+        const resizedMat = new cv.Mat();
+        matsToClean.push(resizedMat);
+        cv.resize(srcMat, resizedMat, new cv.Size(size, size), 0, 0, cv.INTER_AREA);
+
+        const tiles: { square: string, dataUrl: string | 'empty' }[] = [];
+        const tileSize = size / 8;
+        const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+        const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+        
+        // This canvas is reused for all final 64x64 tiles.
+        const tileCanvas = document.createElement('canvas');
+        tileCanvas.width = 64; // Target size for Gemini
+        tileCanvas.height = 64;
+
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const square = files[c] + ranks[r];
+                const rect = new cv.Rect(c * tileSize, r * tileSize, tileSize, tileSize);
+                const tileMat = resizedMat.roi(rect);
+                matsToClean.push(tileMat);
+
+                // --- Empty Tile Check using Standard Deviation ---
+                const grayTile = new cv.Mat();
+                matsToClean.push(grayTile);
+                cv.cvtColor(tileMat, grayTile, cv.COLOR_RGBA2GRAY, 0);
+                
+                const mean = new cv.Mat();
+                const stdDev = new cv.Mat();
+                matsToClean.push(mean, stdDev);
+                cv.meanStdDev(grayTile, mean, stdDev);
+                
+                const stdDevValue = stdDev.data64F[0];
+                // This threshold determines if a tile is empty. A lower value is more
+                // sensitive and less likely to classify a low-contrast piece as empty.
+                const varianceThreshold = 36;
+                const stdDevThreshold = Math.sqrt(varianceThreshold); // = 6
+
+                if (stdDevValue < stdDevThreshold) {
+                    tiles.push({ square, dataUrl: 'empty' });
+                } else {
+                    // --- Resize to 64x64 and Convert to WebP ---
+                    const finalTileMat = new cv.Mat();
+                    matsToClean.push(finalTileMat);
+                    cv.resize(tileMat, finalTileMat, new cv.Size(64, 64), 0, 0, cv.INTER_AREA);
+                    
+                    cv.imshow(tileCanvas, finalTileMat);
+                    const dataUrl = tileCanvas.toDataURL('image/webp', 0.8);
+                    tiles.push({ square, dataUrl });
+                }
+            }
+        }
+        return tiles;
+    } finally {
+        // Clean up all allocated OpenCV memory.
+        matsToClean.forEach(mat => {
+            if (mat && !mat.isDeleted()) {
+                mat.delete();
+            }
+        });
+    }
+};
+
+/**
+ * Uses OpenCV.js to perform a perspective warp on an image.
+ * @param imageFile The source image file.
+ * @param corners The four corner points of the quadrilateral to warp.
+ * @param outputSize The width and height of the resulting square image.
+ * @returns A promise that resolves with the warped image as a File object.
+ */
+export const warpImage = async (
+    imageFile: File,
+    corners: { top_left: [number, number], top_right: [number, number], bottom_right: [number, number], bottom_left: [number, number] },
+    outputSize: number
+): Promise<File> => {
+    await window.cvReady; // Ensure OpenCV is loaded
+    const cv = window.cv;
+
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const matsToClean = [];
+                try {
+                    const src = cv.imread(img);
+                    matsToClean.push(src);
+                    
+                    // Define source and destination corners for the perspective transform
+                    const srcCorners = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                        ...corners.top_left,
+                        ...corners.top_right,
+                        ...corners.bottom_right,
+                        ...corners.bottom_left
+                    ]);
+                    matsToClean.push(srcCorners);
+
+                    const dstCorners = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                        0, 0,
+                        outputSize, 0,
+                        outputSize, outputSize,
+                        0, outputSize
+                    ]);
+                    matsToClean.push(dstCorners);
+
+                    const M = cv.getPerspectiveTransform(srcCorners, dstCorners);
+                    matsToClean.push(M);
+                    const dsize = new cv.Size(outputSize, outputSize);
+                    const warped = new cv.Mat();
+                    matsToClean.push(warped);
+                    cv.warpPerspective(src, warped, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
+                    
+                    const canvas = document.createElement('canvas');
+                    cv.imshow(canvas, warped);
+
+                    canvas.toBlob(blob => {
+                        if (blob) {
+                            resolve(new File([blob], 'warped.png', { type: 'image/png' }));
+                        } else {
+                            reject(new Error("Canvas to Blob conversion failed."));
+                        }
+                    }, 'image/png');
+                } catch (e) {
+                    reject(e);
+                } finally {
+                    // Clean up all OpenCV memory
+                    matsToClean.forEach(mat => {
+                        if (mat && !mat.isDeleted()) {
+                            mat.delete();
+                        }
+                    });
+                }
+            };
+            img.onerror = () => reject(new Error('Failed to load image for warping.'));
+            img.src = event.target?.result as string;
+        };
+        reader.onerror = (e) => reject(new Error(`FileReader error: ${e}`));
+        reader.readAsDataURL(imageFile);
+    });
+};
+
 
 /**
  * Generates a thumbnail image from the first page of a PDF file.
@@ -139,7 +337,7 @@ export const dataUrlToBlob = (dataUrl: string): Blob => {
 export const generatePdfThumbnail = async (file: File, pageNum = 1): Promise<string> => {
     // Set up the web worker for pdf.js to avoid blocking the main thread.
     // The library and worker versions must match.
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://aistudiocdn.com/pdfjs-dist@^5.4.149/build/pdf.worker.mjs`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://aistudiocdn.com/pdfjs-dist@5.4.149/build/pdf.worker.mjs`;
     
     // Read the file into an ArrayBuffer.
     const arrayBuffer = await file.arrayBuffer();
@@ -219,4 +417,26 @@ export const generateBoardThumbnail = (fen: string): string => {
         // Return a transparent placeholder on error
         return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
     }
+};
+
+/**
+ * Converts an ArrayBuffer to a hex string.
+ * @param buffer The ArrayBuffer to convert.
+ * @returns A string representing the buffer in hexadecimal.
+ */
+const bufferToHex = (buffer: ArrayBuffer): string => {
+  return [...new Uint8Array(buffer)]
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+/**
+ * Computes a SHA-1 hash of an image file for duplicate detection.
+ * @param file The image file to hash.
+ * @returns A promise that resolves with the SHA-1 hash as a hex string.
+ */
+export const computeImageHash = async (file: File): Promise<string> => {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
+  return bufferToHex(hashBuffer);
 };

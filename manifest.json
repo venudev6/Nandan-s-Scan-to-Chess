@@ -1,0 +1,51 @@
+{
+  "name": "Nandan's Scan to Chess",
+  "short_name": "Scan Chess",
+  "description": "Scan a chess position from an image and analyze it.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F1ED",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scan with Camera",
+      "short_name": "Camera",
+      "description": "Scan a chess position using the camera",
+      "url": "/?action=camera",
+      "icons": [{ "src": "/icons/shortcut-camera.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Upload Image",
+      "short_name": "Upload",
+      "description": "Upload a chess position from an image file",
+      "url": "/?action=upload",
+      "icons": [{ "src": "/icons/shortcut-upload.png", "sizes": "96x96" }]
+    }
+  ]
+}

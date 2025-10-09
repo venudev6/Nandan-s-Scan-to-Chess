@@ -18,3 +18,9 @@
     flex-grow: 1;
     overflow-y: auto; /* Enable scrolling if content overflows */
 }
+
+/* Override admin-header for this view */
+.admin-panel .admin-header {
+    justify-content: flex-start;
+    gap: 1rem;
+}

@@ -5,12 +5,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
 import { db } from '../lib/db';
-import { generatePdfThumbnail } from '../lib/utils';
+import { generatePdfThumbnail, dataUrlToFile } from '../lib/utils';
 import type { AppState, StoredPdf, User } from '../lib/types';
 import { authService } from '../lib/authService';
 
 // Set up the web worker for pdf.js to avoid blocking the main thread.
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://aistudiocdn.com/pdfjs-dist@^5.4.149/build/pdf.worker.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://aistudiocdn.com/pdfjs-dist@5.4.149/build/pdf.worker.mjs`;
 
 type SelectedPdfState = {
     id: number;
@@ -54,6 +54,12 @@ export const usePdfManager = ({ setAppState, setError, user }: UsePdfManagerProp
             console.error("Could not load stored PDFs:", e);
         }
     }, []);
+    
+    // On initial mount, just load any existing PDFs from the database.
+    useEffect(() => {
+        loadStoredPdfs();
+    }, [loadStoredPdfs]);
+
 
     const clearSelectedPdf = useCallback(() => {
         // Don't destroy the doc here, as it's cached.
@@ -90,6 +96,9 @@ export const usePdfManager = ({ setAppState, setError, user }: UsePdfManagerProp
         try {
             let doc: pdfjsLib.PDFDocumentProxy;
             const record = await db.getPdf(id);
+            
+            const pageToOpen = record.lastPage || 1;
+
 
             // Check the cache first to improve loading times for recent PDFs
             if (docCache.current.has(id)) {
@@ -103,7 +112,7 @@ export const usePdfManager = ({ setAppState, setError, user }: UsePdfManagerProp
             setSelectedPdf({
                 id: record.id,
                 file: record.data,
-                lastPage: record.lastPage || 1,
+                lastPage: pageToOpen,
                 lastZoom: record.lastZoom || 1.0,
                 doc,
             });

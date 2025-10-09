@@ -2,59 +2,66 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
+import { UploadIcon } from '../ui/Icons';
 import './LoadingView.css';
 
 /**
  * A view displayed while the AI is analyzing the image.
- * It shows a spinner and cycles through various status messages.
+ * It shows a spinner and a dynamic status message.
  * It can also display a "scan failed" message with tips and retry options.
  *
  * @param props - Component properties.
  * @param props.onCancel - Callback function to cancel the analysis and go back.
  * @param props.scanFailed - A boolean indicating if the analysis has failed.
  * @param props.onRetry - Callback function to retry the analysis.
+ * @param props.message - The current status message to display to the user.
+ * @param props.imageFile - The image file that was being analyzed.
+ * @param props.tiles - An optional array of base64 data URLs for the 64 sliced board tiles.
  */
-const LoadingView = ({ onCancel, scanFailed, onRetry }: {
+const LoadingView = ({ onCancel, scanFailed, onRetry, message, imageFile, tiles = [] }: {
     onCancel: () => void;
     scanFailed: boolean;
     onRetry: () => void;
+    message: string;
+    imageFile: File | null;
+    tiles?: string[];
 }) => {
-    // A memoized array of messages to display to the user during loading.
-    const messages = useMemo(() => [
-        "Analyzing board layout...",
-        "Identifying individual pieces...",
-        "Determining piece colors and types...",
-        "Constructing the final position...",
-        "Almost there...",
-    ], []);
-    
-    // State to hold the currently displayed message.
-    const [currentMessage, setCurrentMessage] = useState(messages[0]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // This effect cycles through the loading messages every 2.5 seconds.
-    useEffect(() => {
-        // Only run the animation if the scan has not failed.
-        if (!scanFailed) {
-            let index = 0;
-            const interval = setInterval(() => {
-                index = (index + 1) % messages.length; // Loop back to the start
-                setCurrentMessage(messages[index]);
-            }, 2500);
-
-            // Cleanup function to clear the interval when the component unmounts.
-            return () => clearInterval(interval);
-        }
-    }, [messages, scanFailed]);
+    const handleUploadFailureSample = () => {
+        if (!imageFile) return;
+        setIsSubmitting(true);
+        // MOCK: In a real app, this would upload the `imageFile` to a backend service.
+        setTimeout(() => {
+            alert("Thank you for your feedback! The sample image has been submitted for analysis.");
+            setIsSubmitting(false);
+        }, 1000);
+    };
 
     return (
         <div className="card loading-container">
-            <div className="spinner"></div>
+            {/* Show spinner only if tiles are not yet generated */}
+            {!scanFailed && tiles.length === 0 && <div className="spinner"></div>}
+
             {/* Display a different title based on whether the scan failed. */}
             <h3>{scanFailed ? "Scan Failed" : "Scanning Position"}</h3>
             
-            {/* Show the cycling messages only during a successful loading state. */}
-            {!scanFailed && <p className="loading-message">{currentMessage}</p>}
+            {/* Only show the dynamic status message if the scan has NOT failed. */}
+            {!scanFailed && <p className="loading-message">{message}</p>}
+            
+            {/* Show tile preview during a successful loading state if tiles are available */}
+            {!scanFailed && tiles.length > 0 && (
+                <div className="loading-tiles-preview">
+                    <h4>Tiles Sent to Gemini</h4>
+                    <p className="preview-description">These 64 tiles were extracted from the warped image and are sent for piece classification.</p>
+                    <div className="tiles-grid">
+                        {tiles.map((tileSrc, index) => (
+                            <img key={index} src={tileSrc} alt={`Tile ${index + 1}`} />
+                        ))}
+                    </div>
+                </div>
+            )}
             
             {/* Conditionally render either the failure tips or the cancel button. */}
             {scanFailed ? (
@@ -69,9 +76,18 @@ const LoadingView = ({ onCancel, scanFailed, onRetry }: {
                            <li><strong>High Contrast:</strong> Clear distinction between pieces and squares.</li>
                         </ul>
                     </div>
-                    <div className="button-group">
-                        <button className="btn btn-secondary" onClick={onCancel}>Start Over</button>
-                        <button className="btn btn-primary" onClick={onRetry}>Try Again</button>
+                     <div className="failure-actions-container">
+                        <div className="button-group">
+                            <button className="btn btn-secondary" onClick={onCancel}>Start Over</button>
+                            <button className="btn btn-primary" onClick={onRetry}>Try Again</button>
+                        </div>
+                        <div className="feedback-section">
+                            <p>Help improve our scans!</p>
+                            <button className="btn btn-secondary" onClick={handleUploadFailureSample} disabled={isSubmitting || !imageFile}>
+                                {isSubmitting ? <div className="spinner-small"></div> : <UploadIcon />}
+                                {isSubmitting ? 'Submitting...' : 'Upload Failed Image'}
+                            </button>
+                        </div>
                     </div>
                 </>
             ) : (

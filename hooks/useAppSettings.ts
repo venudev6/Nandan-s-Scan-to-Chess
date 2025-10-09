@@ -34,7 +34,16 @@ export const useAppSettings = () => {
         return 'staunty';
     });
 
+    const [cooldownLocked, setCooldownLocked] = useState(() => {
+        return localStorage.getItem('cooldownLocked') === 'true';
+    });
+
+    const [fenCopyLocked, setFenCopyLocked] = useState(() => {
+        return localStorage.getItem('fenCopyLocked') === 'true';
+    });
+
     const handleCooldownChange = (seconds: number) => {
+        if (cooldownLocked) return;
         setAnalysisCooldown(seconds);
         localStorage.setItem('analysisCooldown', String(seconds));
     };
@@ -53,15 +62,30 @@ export const useAppSettings = () => {
         setPieceTheme(theme);
         localStorage.setItem('pieceTheme', theme);
     };
+    
+    const handleSetCooldownLocked = (isLocked: boolean) => {
+        setCooldownLocked(isLocked);
+        localStorage.setItem('cooldownLocked', String(isLocked));
+    };
+
+    const handleSetFenCopyLocked = (isLocked: boolean) => {
+        setFenCopyLocked(isLocked);
+        localStorage.setItem('fenCopyLocked', String(isLocked));
+    };
+
 
     return {
         analysisCooldown,
         boardTheme,
         soundEnabled,
         pieceTheme,
+        cooldownLocked,
+        fenCopyLocked,
         handleCooldownChange,
         handleBoardThemeChange,
         handleSoundToggle,
         handlePieceThemeChange,
+        handleSetCooldownLocked,
+        handleSetFenCopyLocked,
     };
 };

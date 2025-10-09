@@ -22,6 +22,7 @@ interface ChessboardProps {
     possibleMoves?: string[];
     uncertainSquares?: string[];
     userHighlights?: string[];
+    verificationHighlights?: string[];
     isFlipped?: boolean;
     heldPiece?: HeldPiece | null;
     pieceTheme: string;
@@ -41,6 +42,7 @@ const Chessboard = React.memo(({
   possibleMoves = [],
   uncertainSquares = [],
   userHighlights = [],
+  verificationHighlights = [],
   isFlipped = false,
   heldPiece,
   pieceTheme
@@ -83,6 +85,13 @@ const Chessboard = React.memo(({
     }, [uncertainSquares]);
     
     const userHighlightSet = useMemo(() => new Set(userHighlights), [userHighlights]);
+    
+    const verificationHighlightSet = useMemo(() => {
+        return new Set(verificationHighlights.map(square => {
+            const coords = getSquareCoords(square);
+            return `${coords.row}-${coords.col}`;
+        }));
+    }, [verificationHighlights]);
 
     // Determine the source square of the currently held piece for styling.
     const heldSquare = (heldPiece && typeof heldPiece.from === 'object' && 'row' in heldPiece.from) ? heldPiece.from : null;
@@ -108,6 +117,7 @@ const Chessboard = React.memo(({
                 const isPossibleMove = possibleMoveSquares.has(`${row}-${col}`);
                 const isUncertain = uncertainSquareSet.has(`${row}-${col}`);
                 const isUserHighlighted = userHighlightSet.has(squareName);
+                const isVerificationMismatch = verificationHighlightSet.has(`${row}-${col}`);
                 const hasPiece = !!piece;
                 
                 const isHeldOrigin = heldSquare && heldSquare.row === row && heldSquare.col === col;
@@ -119,7 +129,7 @@ const Chessboard = React.memo(({
                         data-row={row}
                         data-col={col}
                         // Dynamically build the CSS class list based on the square's state.
-                        className={`square ${isLight ? 'light' : 'dark'} ${isSelected ? 'selected' : ''} ${isLastMove ? 'last-move-square' : ''} ${isHeldOrigin ? 'held-piece-origin' : ''} ${isUncertain ? 'uncertain-square' : ''} ${isUserHighlighted ? 'user-highlighted-square' : ''}`}
+                        className={`square ${isLight ? 'light' : 'dark'} ${isSelected ? 'selected' : ''} ${isLastMove ? 'last-move-square' : ''} ${isHeldOrigin ? 'held-piece-origin' : ''} ${isUncertain ? 'uncertain-square' : ''} ${isUserHighlighted ? 'user-highlighted-square' : ''} ${isVerificationMismatch ? 'verification-mismatch-square' : ''}`}
                         onClick={() => onSquareClick?.({ row, col })}
                         aria-label={`Square ${squareName}`}
                     >

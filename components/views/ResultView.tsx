@@ -53,7 +53,7 @@ const ResultView = ({
     const {
         board, turn, fen, isFenValid,
         setTurn,
-        sanitizationMessage, setSanitizationMessage,
+        sanitizationMessages, setSanitizationMessages,
         handlePieceDrop, handleFenChange,
     } = useBoardEditor(initialFen, initialTurn);
 
@@ -157,18 +157,19 @@ const ResultView = ({
                     showRescanToast={showRescanToast}
                     pieceTheme={appSettings.pieceTheme}
                 />
+                {/* FIX: Pass the 'appSettings' prop to the EditorControls component. */}
                 <EditorControls
                     originalImage={originalImage}
                     isRescanning={isRescanning}
                     onRescan={onRescan}
                     turn={turn}
                     setTurn={setTurn}
-                    setSanitizationMessage={setSanitizationMessage}
+                    setSanitizationMessages={setSanitizationMessages}
                     handlePalettePointerDown={handlePalettePointerDown}
                     handleRemoveClick={handleRemoveClick}
                     heldPiece={heldPiece}
                     ghostPosition={ghostPosition}
-                    sanitizationMessage={sanitizationMessage}
+                    sanitizationMessages={sanitizationMessages}
                     analysisDetails={analysisDetails}
                     fen={fen}
                     handleFenChange={handleFenChange}
@@ -176,6 +177,7 @@ const ResultView = ({
                     onBack={handleBackClick}
                     onAnalyze={handleAnalyzeClick}
                     pieceTheme={appSettings.pieceTheme}
+                    appSettings={appSettings}
                 />
             </div>
         </div>

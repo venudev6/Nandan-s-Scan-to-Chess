@@ -37,8 +37,8 @@ const AdminView = ({ onBack }: AdminViewProps) => {
         <div className="card admin-panel">
             <div className="admin-header">
                 <h1>Admin Panel - Registered Users</h1>
-                <button className="btn btn-secondary" onClick={onBack}>
-                    <BackIcon /> Back to App
+                <button className="btn btn-secondary" onClick={onBack} aria-label="Back to App">
+                    <BackIcon /> 
                 </button>
             </div>
 

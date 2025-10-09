@@ -22,6 +22,7 @@ import { authService } from './lib/authService';
 import { AppState } from './lib/types';
 import { soundManager } from './lib/SoundManager';
 import ProfileView from './components/views/ProfileView';
+import { UpdatePrompt } from './components/ui/UpdatePrompt';
 
 const AppContent = () => {
     const { user, isLoggedIn, isLoading, authFlowVisible, requestAuthFlow, hideAuthFlow } = useAuth();
@@ -29,6 +30,8 @@ const AppContent = () => {
     const [pendingEmail, setPendingEmail] = useState<string | null>(null);
     const [appState, setAppState] = useState<AppState>('initial');
     const [previousAppState, setPreviousAppState] = useState<AppState>('initial');
+    const [triggerUpload, setTriggerUpload] = useState(false);
+    const [updateRegistration, setUpdateRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
      // --- CUSTOM HOOKS ---
     const appSettings = useAppSettings();
@@ -47,6 +50,47 @@ const AppContent = () => {
             document.body.classList.remove('logged-in');
         }
     }, [appState, isLoggedIn]);
+
+    // Handle app shortcuts on initial load
+    useEffect(() => {
+        // This effect runs only once on initial load.
+        const params = new URLSearchParams(window.location.search);
+        const action = params.get('action');
+
+        if (action === 'camera') {
+            handleSetAppState('camera');
+        } else if (action === 'upload') {
+            setTriggerUpload(true);
+        }
+        
+        // Clean the URL so a refresh doesn't re-trigger the action
+        if (action) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }, []); // Empty array ensures it runs only once.
+    
+    // Listen for service worker updates
+    useEffect(() => {
+        const handleNewVersion = (event: Event) => {
+            const customEvent = event as CustomEvent<ServiceWorkerRegistration>;
+            setUpdateRegistration(customEvent.detail);
+        };
+
+        document.addEventListener('new-version-available', handleNewVersion);
+        
+        let refreshing = false;
+        const handleControllerChange = () => {
+            if (refreshing) return;
+            refreshing = true;
+            window.location.reload();
+        };
+        navigator.serviceWorker?.addEventListener('controllerchange', handleControllerChange);
+
+        return () => {
+            document.removeEventListener('new-version-available', handleNewVersion);
+            navigator.serviceWorker?.removeEventListener('controllerchange', handleControllerChange);
+        };
+    }, []);
 
     const handleSetAppState = (newState: AppState) => {
         if (newState !== appState) {
@@ -170,6 +214,8 @@ const AppContent = () => {
                 onSavedGamesClick={handleSavedGamesClick}
                 onHistoryClick={handleHistoryClick}
                 onProfileClick={handleProfileClick}
+                triggerUpload={triggerUpload}
+                onUploadTriggered={() => setTriggerUpload(false)}
             />
         );
 
@@ -181,6 +227,7 @@ const AppContent = () => {
                         {authFlowComponent}
                     </div>
                 )}
+                {updateRegistration && <UpdatePrompt registration={updateRegistration} />}
             </>
         );
     };

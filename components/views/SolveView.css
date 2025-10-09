@@ -107,9 +107,11 @@
 .solve-main-actions .result-actions .btn.btn-back {
     flex: 0 0 auto;
 }
-.solve-main-actions .result-actions .btn-secondary:not(.btn-back),
-.solve-main-actions .result-actions .btn-analyze {
+.solve-main-actions .result-actions .btn-secondary:not(.btn-back) {
     flex: 1 1 0;
+}
+.solve-main-actions .result-actions .btn-analyze {
+    flex: 2 1 0;
 }
 
 /* ====== MOVE HISTORY CARD ====== */

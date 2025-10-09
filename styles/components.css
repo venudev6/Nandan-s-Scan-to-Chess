@@ -68,13 +68,14 @@
   gap: 0.5rem; /* Space between icon and text */
   padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
-  border: none;
+  border: 1px solid transparent;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease; /* Smooth transitions for hover effects */
   font-size: 1rem;
   white-space: nowrap; /* Prevents text wrapping */
   text-decoration: none;
+  height: 3rem; /* 48px */
 }
 .btn:disabled, .btn.disabled {
   opacity: 0.6;
@@ -92,7 +93,7 @@
 .btn-secondary {
   background-color: #e5e7eb;
   color: #374151;
-  border: 1px solid var(--border-color);
+  border-color: var(--border-color);
 }
 .btn-secondary:hover:not(:disabled) {
   background-color: #d1d5db;

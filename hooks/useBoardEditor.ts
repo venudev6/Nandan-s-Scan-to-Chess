@@ -26,19 +26,19 @@ export const useBoardEditor = (initialFen: string, initialTurn: PieceColor) => {
     const [turn, setTurn] = useState<PieceColor>(initialTurn);
     const [fen, setFen] = useState(initialFen);
     const [isFenValid, setIsFenValid] = useState(true);
-    const [sanitizationMessage, setSanitizationMessage] = useState<string | null>(null);
+    const [sanitizationMessages, setSanitizationMessages] = useState<string[] | null>(null);
 
     // This effect syncs the editor's state with the initialFen prop.
     // It runs on mount and whenever initialFen or initialTurn changes (e.g., after a rescan).
     useEffect(() => {
         try {
-            const { board, turn, correctedFen } = fenToBoardState(initialFen);
+            const { board, turn, correctedFenMessages } = fenToBoardState(initialFen);
             setBoard(board);
             setTurn(turn);
-            const newFen = correctedFen ? boardStateToFen(board, turn) : initialFen;
+            const newFen = correctedFenMessages ? boardStateToFen(board, turn) : initialFen;
             setFen(newFen);
             setIsFenValid(true);
-            setSanitizationMessage(correctedFen || null);
+            setSanitizationMessages(correctedFenMessages || null);
         } catch (e) {
             console.error("Failed to parse FEN, falling back to initial board.", initialFen, e);
             const { board, turn } = fenToBoardState(INITIAL_FEN);
@@ -46,7 +46,7 @@ export const useBoardEditor = (initialFen: string, initialTurn: PieceColor) => {
             setTurn(turn);
             setFen(INITIAL_FEN);
             setIsFenValid(true);
-            setSanitizationMessage("Could not parse the scanned position. Please set up the board manually.");
+            setSanitizationMessages(["Could not parse the scanned position. Please set up the board manually."]);
         }
     }, [initialFen, initialTurn]);
 
@@ -69,7 +69,7 @@ export const useBoardEditor = (initialFen: string, initialTurn: PieceColor) => {
         item: HeldPiece,
         to: { row: number, col: number } | null
     ) => {
-        setSanitizationMessage(null); // Clear any auto-correction messages on manual edit
+        setSanitizationMessages(null); // Clear any auto-correction messages on manual edit
         setBoard(currentBoard => {
             const newBoard = currentBoard.map(r => [...r]);
             if (typeof item.from === 'object' && 'row' in item.from) {
@@ -88,7 +88,7 @@ export const useBoardEditor = (initialFen: string, initialTurn: PieceColor) => {
     const handleFenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newFen = e.target.value;
         setFen(newFen);
-        setSanitizationMessage(null);
+        setSanitizationMessages(null);
         try {
             const completed = completeFen(newFen);
             const { board: newBoard, turn: newTurn } = fenToBoardState(completed);
@@ -105,7 +105,7 @@ export const useBoardEditor = (initialFen: string, initialTurn: PieceColor) => {
         turn, setTurn,
         fen, setFen,
         isFenValid,
-        sanitizationMessage, setSanitizationMessage,
+        sanitizationMessages, setSanitizationMessages,
         handlePieceDrop,
         handleFenChange
     };

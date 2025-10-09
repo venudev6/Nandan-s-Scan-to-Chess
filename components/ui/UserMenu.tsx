@@ -5,7 +5,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
     UserCircleIcon, LogoutIcon, SettingsIcon, BoardIcon, GameplayIcon, 
-    AccountIcon, ChevronRightIcon, HistoryIcon, BookmarkIcon, BackIcon, ExternalLinkIcon
+    AccountIcon, ChevronRightIcon, HistoryIcon, BookmarkIcon, BackIcon, ExternalLinkIcon, LockIcon
 } from './Icons';
 import type { User } from '../../lib/types';
 import { useAppSettings } from '../../hooks/useAppSettings';
@@ -61,7 +61,9 @@ const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHist
     const MainPanel = () => (
         <>
             <button className="user-menu-header" onClick={handleProfileClick} title="View your profile">
-                <div className="user-avatar"><UserCircleIcon /></div>
+                <div className="user-avatar">
+                    {user.photoUrl ? <img src={user.photoUrl} alt="User avatar" /> : <UserCircleIcon />}
+                </div>
                 <div className="user-info">
                     <span className="user-name">{user.name || user.email}</span>
                     <span className={`role-badge role-${user.role}`}>{user.role}</span>
@@ -149,6 +151,7 @@ const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHist
                     <div className="setting-sub-item">
                         <label htmlFor="cooldown-slider">
                            Cooldown: <strong>{Math.floor(appSettings.analysisCooldown / 60)} min</strong>
+                           {appSettings.cooldownLocked && <LockIcon />}
                         </label>
                          <input
                             type="range"
@@ -159,7 +162,8 @@ const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHist
                             value={appSettings.analysisCooldown}
                             onChange={(e) => appSettings.handleCooldownChange(parseInt(e.target.value, 10))}
                             aria-label="Analysis button cooldown time"
-                            title="Set the cooldown time for external analysis links"
+                            title={appSettings.cooldownLocked ? "Unlock in Profile settings to change" : "Set the cooldown time for external analysis links"}
+                            disabled={appSettings.cooldownLocked}
                         />
                     </div>
                 </div>
@@ -170,7 +174,9 @@ const UserMenu = ({ user, onLogout, onAdminPanelClick, onSavedGamesClick, onHist
     return (
         <div className="user-menu-container" ref={menuRef}>
             <button className="user-menu-button" onClick={handleMenuToggle} aria-haspopup="true" aria-expanded={isOpen} title="Open user menu">
-                <UserCircleIcon />
+                <div className="user-avatar">
+                     {user.photoUrl ? <img src={user.photoUrl} alt="User avatar" /> : <UserCircleIcon />}
+                </div>
             </button>
             {isOpen && (
                 <div className="user-menu-dropdown">

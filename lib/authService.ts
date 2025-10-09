@@ -31,6 +31,24 @@ const generateToken = () => {
 // Simulate network latency
 const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+const getFullUser = (dbUser: MockDbUser): User => {
+    const { password, isGoogle, ...user } = dbUser;
+    return user;
+}
+
+const updateUserInSession = (dbUser: MockDbUser): User => {
+    const sessionData = localStorage.getItem(MOCK_SESSION_KEY);
+    const user = getFullUser(dbUser);
+    if (sessionData) {
+        const sessionUser = JSON.parse(sessionData);
+        if (sessionUser.id === dbUser.id) {
+            localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(user));
+        }
+    }
+    return user;
+};
+
+
 // --- Service Method Implementations ---
 
 /**
@@ -53,7 +71,7 @@ const login = async (email: string, password: string): Promise<User> => {
         if (userData.status === 'pending') {
              throw new Error('Please confirm your email address before logging in.');
         }
-        const user: User = { id: userData.id, email: userData.email, role: userData.role, status: userData.status, name: userData.name, about: userData.about };
+        const user = getFullUser(userData);
         localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(user));
         return user;
     } else {
@@ -90,7 +108,7 @@ const loginWithGoogle = async (credential: { email: string, name: string, sub: s
     userData.isGoogle = true;
     saveUsersToDB(users);
     
-    const user: User = { id: userData.id, email: userData.email, role: userData.role, status: userData.status, name: userData.name, about: userData.about };
+    const user = getFullUser(userData);
     localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(user));
     return user;
 };
@@ -164,8 +182,7 @@ const confirmEmail = async (token: string): Promise<User> => {
         userData.status = 'active';
         delete userData.confirmationToken; // Token is single-use
         saveUsersToDB(users);
-        const confirmedUser: User = { id: userData.id, email: userData.email, role: userData.role, status: 'active', name: userData.name, about: userData.about };
-        return confirmedUser;
+        return getFullUser(userData);
     } else {
         throw new Error('Invalid or expired confirmation token.');
     }
@@ -194,11 +211,12 @@ const getCurrentUser = async (): Promise<User | null> => {
             const dbUsers = getUsersFromDB();
             if (dbUsers[user.email] && dbUsers[user.email].status === 'active') {
                 const dbUser = dbUsers[user.email];
-                const syncedUser: User = { ...user, name: dbUser.name, about: dbUser.about };
-                if (JSON.stringify(user) !== JSON.stringify(syncedUser)) {
-                    localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(syncedUser));
+                const fullUser = getFullUser(dbUser);
+                // Sync session if it's outdated
+                if (JSON.stringify(user) !== JSON.stringify(fullUser)) {
+                    localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(fullUser));
                 }
-                return syncedUser;
+                return fullUser;
             }
         } catch (e) {
             console.error("Corrupted session data. Clearing session.", e);
@@ -214,14 +232,8 @@ const getCurrentUser = async (): Promise<User | null> => {
 const getAllUsers = async (): Promise<User[]> => {
     await simulateDelay(400);
     const users = getUsersFromDB();
-    // Return a list of users without their passwords
-    return Object.values(users).map((u: any) => ({
-        id: u.id,
-        email: u.email,
-        role: u.role,
-        status: u.status,
-        name: u.name,
-    }));
+    // Return a list of users without their passwords or other sensitive info
+    return Object.values(users).map(getFullUser);
 };
 
 /**
@@ -243,23 +255,75 @@ const updateUser = async (updatedDetails: Partial<User> & { id: number }): Promi
     if (updatedDetails.about !== undefined) {
         dbUser.about = updatedDetails.about;
     }
+    if (updatedDetails.photoUrl !== undefined) {
+        dbUser.photoUrl = updatedDetails.photoUrl;
+    }
+
     users[userEmail] = dbUser;
     saveUsersToDB(users);
-
-    // Update session if it's the current user
-    const sessionData = localStorage.getItem(MOCK_SESSION_KEY);
-    if (sessionData) {
-        const sessionUser = JSON.parse(sessionData);
-        if (sessionUser.id === updatedDetails.id) {
-            const updatedSessionUser: User = { ...sessionUser, name: dbUser.name, about: dbUser.about };
-            localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(updatedSessionUser));
-            return updatedSessionUser;
-        }
-    }
     
-    // This return is for cases where another user (e.g. admin) updates a profile
-    return { id: dbUser.id, email: dbUser.email, role: dbUser.role, status: dbUser.status, name: dbUser.name, about: dbUser.about };
+    return updateUserInSession(dbUser);
 };
+
+// --- PIN Management ---
+const setPin = async (userId: number, pin: string): Promise<User> => {
+    await simulateDelay(200);
+    const users = getUsersFromDB();
+    const userEmail = Object.keys(users).find(email => users[email].id === userId);
+    if (!userEmail) throw new Error("User not found.");
+
+    users[userEmail].pinHash = pin; // Not really a hash, but this is a mock.
+    saveUsersToDB(users);
+    return updateUserInSession(users[userEmail]);
+};
+
+const verifyPin = async (userId: number, pin: string): Promise<boolean> => {
+    await simulateDelay(200);
+    const users = getUsersFromDB();
+    const userEmail = Object.keys(users).find(email => users[email].id === userId);
+    if (!userEmail) return false;
+    return users[userEmail].pinHash === pin;
+};
+
+const requestPinReset = async (userId: number): Promise<string> => {
+    await simulateDelay(300);
+    const users = getUsersFromDB();
+    const userEmail = Object.keys(users).find(email => users[email].id === userId);
+    if (!userEmail) throw new Error("User not found.");
+
+    const token = generateToken();
+    users[userEmail].pinResetToken = token;
+    users[userEmail].pinResetExpires = Date.now() + 3600000; // 1 hour
+    saveUsersToDB(users);
+
+    console.log(`
+        --- SIMULATED PIN RESET ---
+        To: ${userEmail}
+        Your PIN reset token is: ${token}
+        It expires in 1 hour.
+        (In a real app, this would be an email with a link)
+        -------------------------`);
+
+    return token;
+};
+
+const resetPin = async (token: string, newPin: string): Promise<User> => {
+    await simulateDelay(300);
+    const users = getUsersFromDB();
+    const userEmail = Object.keys(users).find(email => 
+        users[email].pinResetToken === token && 
+        users[email].pinResetExpires && 
+        users[email].pinResetExpires! > Date.now()
+    );
+    if (!userEmail) throw new Error("Invalid or expired PIN reset token.");
+
+    users[userEmail].pinHash = newPin;
+    users[userEmail].pinResetToken = null;
+    users[userEmail].pinResetExpires = null;
+    saveUsersToDB(users);
+    return updateUserInSession(users[userEmail]);
+};
+
 
 // --- Initialize Mock Database with a default admin user ---
 const initializeMockDB = () => {
@@ -289,6 +353,10 @@ export const authService = {
     getCurrentUser,
     getAllUsers,
     updateUser,
+    setPin,
+    verifyPin,
+    requestPinReset,
+    resetPin,
 };
 
 

@@ -25,10 +25,12 @@ import { analyzeImagePosition } from '../../lib/gemini';
 import { authService, googleDriveService } from '../../lib/authService';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { usePdfManager } from '../../hooks/usePdfManager';
+// FIX: 'generateBoardThumbnail' is exported from 'lib/utils', not 'lib/fenUtils'.
 import { fenToBoardState } from '../../lib/fenUtils';
-import { dataUrlToBlob, imageToBase64 } from '../../lib/utils';
+import { dataUrlToBlob, computeImageHash, generateBoardThumbnail } from '../../lib/utils';
 import { db } from '../../lib/db';
 import type { AppState, PieceColor, AnalysisDetails, HistoryEntry, User } from '../../lib/types';
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 
 type AnalysisResult = {
     fen: string;
@@ -51,6 +53,8 @@ interface ProtectedAppProps {
     onSavedGamesClick: () => void;
     onHistoryClick: () => void;
     onProfileClick: () => void;
+    triggerUpload: boolean;
+    onUploadTriggered: () => void;
 }
 
 
@@ -61,11 +65,10 @@ interface ProtectedAppProps {
 export const ProtectedApp = ({
     onScanComplete, isGuestPastTrial, onAuthRequired,
     appState, setAppState, previousAppState, appSettings, onAdminPanelClick,
-    onSavedGamesClick, onHistoryClick, onProfileClick
+    onSavedGamesClick, onHistoryClick, onProfileClick, triggerUpload, onUploadTriggered
 }: ProtectedAppProps) => {
     // --- STATE MANAGEMENT ---
     const { user, isLoggedIn, logout, driveAccessToken, authorizeDrive } = useAuth();
-    const analysisCache = useRef(new Map<string, AnalysisResult>());
 
     const [imageData, setImageData] = useState<File | null>(null);
     const [croppedImageDataUrl, setCroppedImageDataUrl] = useState<string | null>(null);
@@ -76,9 +79,13 @@ export const ProtectedApp = ({
     const [rescanCounter, setRescanCounter] = useState(0);
     const [initialGameHistory, setInitialGameHistory] = useState<HistoryEntry[] | null>(null);
     const [loadedGameId, setLoadedGameId] = useState<number | undefined>(undefined);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [scanFailed, setScanFailed] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState("Initializing...");
+    const [loadingTiles, setLoadingTiles] = useState<string[]>([]);
     const [pdfToSync, setPdfToSync] = useState<number | null>(null);
     const [isCameraAvailable, setIsCameraAvailable] = useState<boolean>(true);
+    const [recoveryScan, setRecoveryScan] = useState<{ fen: string, timestamp: number } | null>(null);
+    const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
 
 
     // FIX: Refactored to fix "used before declaration" error. The sync logic is now handled in this component.
@@ -192,6 +199,7 @@ export const ProtectedApp = ({
         clearSelectedPdf();
         setInitialGameHistory(null);
         setLoadedGameId(undefined);
+        setLoadingTiles([]);
         setAppState('initial');
     }, [setAppState, clearSelectedPdf]);
 
@@ -215,10 +223,10 @@ export const ProtectedApp = ({
         setAppState('camera');
     };
     
-    const handleFenLoad = (fen: string, imageUrl: string) => {
+    const handleFenLoad = async (fen: string, imageUrl: string) => {
         if (isGuestPastTrial) return onAuthRequired();
         try {
-            const blob = dataUrlToBlob(imageUrl);
+            const blob = await dataUrlToBlob(imageUrl);
             const file = new File([blob], 'sample.png', { type: 'image/png' });
             setImageData(file);
             setCroppedImageDataUrl(imageUrl);
@@ -232,61 +240,114 @@ export const ProtectedApp = ({
     };
 
     const handleCropConfirm = async (file: File) => {
-        // 1. Check cache first
-        const base64Image = await imageToBase64(file);
-        if (analysisCache.current.has(base64Image)) {
-            const cachedResult = analysisCache.current.get(base64Image)!;
-            setAnalysisResult(cachedResult);
-            // We still need to set the image URL for the result view
+        setScanFailed(false);
+        setLoadingTiles([]);
+        setLoadingMessage("Slicing image...");
+        setAppState('loading');
+        
+        const totalStartTime = performance.now();
+        let timings: any = { image_hashing_ms: 0 };
+    
+        try {
+            const hashStart = performance.now();
+            const boardHash = await computeImageHash(file);
+            timings.image_hashing_ms = performance.now() - hashStart;
+
+            // --- CACHE CHECK ---
+            const cachedResult: AnalysisResult | null = await db.getKeyValue(`fen_cache_${boardHash}`);
+            if (cachedResult) {
+                console.log("CACHE HIT:", boardHash);
+                setAnalysisResult(cachedResult);
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onloadend = () => {
+                    setCroppedImageDataUrl(reader.result as string);
+                };
+                onScanComplete();
+                setAppState('result');
+                return; // Exit early
+            }
+            console.log("CACHE MISS:", boardHash);
+            // --- END CACHE CHECK ---
+            
+            setLoadingMessage("Detecting board...");
+            
+            const result = await analyzeImagePosition(file, boardHash, false, (slicedTiles) => {
+                // Create a placeholder for empty squares to show in the loading preview.
+                const placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/%3E';
+                const displayTiles = slicedTiles.map(tile =>
+                    tile.dataUrl === 'empty' ? placeholder : (tile.dataUrl as string)
+                );
+                setLoadingTiles(displayTiles);
+                setLoadingMessage("Analyzing with Gemini...");
+            });
+            
+            const validationStartTime = performance.now();
+            try {
+                new Chess(result.fen);
+            } catch (chessError) {
+                throw new Error(`chessjs_validation_failed: ${chessError instanceof Error ? chessError.message : String(chessError)}`);
+            }
+    
+            timings.total_scan_ms = performance.now() - totalStartTime;
+
+            const timingSummary = {
+                image_hashing_ms: Math.round(timings.image_hashing_ms),
+                board_detection_ms: Math.round(result.timings.board_detection_ms),
+                perspective_warp_ms: Math.round(result.timings.perspective_warp_ms),
+                tile_slicing_ms: Math.round(result.timings.tile_slicing_ms),
+                gemini_classification_ms: Math.round(result.timings.gemini_classification_ms),
+                post_processing_ms: Math.round(result.timings.post_processing_ms),
+                total_scan_ms: Math.round(timings.total_scan_ms),
+            };
+            
+            const finalAnalysisResult: AnalysisResult = {
+                fen: result.fen,
+                turn: result.turn,
+                details: {
+                    ...result.details,
+                    timingSummary,
+                },
+                scanDuration: timings.total_scan_ms / 1000,
+            };
+
+            // --- SAVE TO CACHE ---
+            await db.saveKeyValue(`fen_cache_${boardHash}`, finalAnalysisResult);
+            await db.saveKeyValue('lastValidScan', { fen: result.fen, timestamp: Date.now() });
+            // --- END SAVE TO CACHE ---
+    
+            setAnalysisResult(finalAnalysisResult);
+    
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onloadend = () => {
                 setCroppedImageDataUrl(reader.result as string);
             };
-            setAppState('result');
-            return;
-        }
-    
-        setAnalysisResult(null);
-        setIsAnalyzing(true);
-        setAppState('loading');
-    
-        const startTime = performance.now();
-    
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onloadend = () => {
-            setCroppedImageDataUrl(reader.result as string);
-        };
-    
-        try {
-            let result;
-            // Tier 1: High accuracy pass
-            try {
-                console.log("Attempting high-accuracy analysis...");
-                result = await analyzeImagePosition(file, false);
-                // Validate FEN from first pass
-                new Chess(result.fen); // This will throw if invalid
-            } catch (e) {
-                console.warn("High-accuracy analysis failed or returned invalid FEN. Retrying...", e);
-                // Tier 2: Retry pass on failure
-                result = await analyzeImagePosition(file, true);
-                new Chess(result.fen); // Validate FEN from retry pass too
-            }
-    
-            const endTime = performance.now();
-            const duration = (endTime - startTime) / 1000;
-    
-            const finalResult = { ...result, scanDuration: duration };
-            setAnalysisResult(finalResult);
-            analysisCache.current.set(base64Image, finalResult); // Cache successful result
+            
             onScanComplete();
             setAppState('result');
         } catch (e) {
-            console.error("Analysis failed on both tiers:", e);
-            setAppState('loading');
-        } finally {
-            setIsAnalyzing(false);
+            let failureReason = 'unknown_error';
+            if (e instanceof Error) {
+                 if (e.message.includes('chessjs_validation_failed')) {
+                    failureReason = 'chessjs_validation_failed';
+                } else if (e.message.includes('Scan validation failed')) {
+                    failureReason = 'illegal_piece_count';
+                } else {
+                    failureReason = 'gemini_api_error';
+                }
+            }
+
+            console.error("Analysis Pipeline Failed. Reason:", failureReason, "Error:", e);
+            setLoadingMessage(""); 
+
+            const lastScan = await db.getKeyValue<{ fen: string, timestamp: number }>('lastValidScan');
+            if (lastScan) {
+                setRecoveryScan(lastScan);
+                setShowRecoveryDialog(true);
+            } else {
+                setScanFailed(true);
+            }
         }
     };
     
@@ -299,15 +360,21 @@ export const ProtectedApp = ({
         if (!croppedImageDataUrl) return;
         setIsRescanning(true);
         try {
-            const blob = dataUrlToBlob(croppedImageDataUrl);
+            const blob = await dataUrlToBlob(croppedImageDataUrl);
             const file = new File([blob], 'rescan.webp', { type: 'image/webp' });
+            
             const startTime = performance.now();
-            // Force a retry analysis on rescan
-            const result = await analyzeImagePosition(file, true); 
-            const endTime = performance.now();
-            const duration = (endTime - startTime) / 1000;
-            setAnalysisResult({ ...result, scanDuration: duration });
-            setRescanCounter(c => c + 1); // Increment counter to trigger effect in ResultView
+            const boardHash = await computeImageHash(file);
+            const result = await analyzeImagePosition(file, boardHash, true); // Use the retry flag
+            const scanDuration = (performance.now() - startTime) / 1000;
+
+            setAnalysisResult({
+                fen: result.fen,
+                turn: result.turn,
+                details: result.details,
+                scanDuration: scanDuration,
+            });
+            setRescanCounter(c => c + 1);
         } catch(e) {
             console.error("Rescan failed", e);
             alert("Rescan failed. Please try starting over.");
@@ -317,22 +384,17 @@ export const ProtectedApp = ({
     };
 
     const handleAnalyze = (fen: string) => {
+        soundManager.play('UI_CLICK');
         setAnalysisResult({ ...analysisResult!, fen });
-        // When moving from Result to Solve, clear any loaded game history
-        // to ensure it's treated as a new game to be saved.
         setInitialGameHistory(null);
         setLoadedGameId(undefined);
         setAppState('solve');
     };
     
     const handleNextPuzzle = () => {
-        // If the puzzle came from a PDF, go back to the PDF viewer on the same page.
         if (pdfContext && selectedPdf) {
-            // The `selectedPdf` state already holds the correct page number.
-            // Just switch the view back to the PDF viewer.
             setAppState('pdfViewer');
         } else {
-            // If it wasn't from a PDF (e.g., image upload, camera), go back to the initial screen.
             resetToInitial();
         }
     };
@@ -380,6 +442,22 @@ export const ProtectedApp = ({
         setAppState(previousAppState);
     };
 
+    const handleConfirmRecovery = () => {
+        if (recoveryScan) {
+            const thumb = generateBoardThumbnail(recoveryScan.fen);
+            handleFenLoad(recoveryScan.fen, thumb);
+        }
+        setShowRecoveryDialog(false);
+        setRecoveryScan(null);
+    };
+
+    const handleDeclineRecovery = () => {
+        setShowRecoveryDialog(false);
+        setRecoveryScan(null);
+        setScanFailed(true);
+    };
+
+
     // Render logic for different application states
     const renderContent = () => {
         switch (appState) {
@@ -402,6 +480,8 @@ export const ProtectedApp = ({
                         onAdminPanelClick={onAdminPanelClick}
                         isCameraAvailable={isCameraAvailable}
                         onProfileClick={onProfileClick}
+                        triggerUpload={triggerUpload}
+                        onUploadTriggered={onUploadTriggered}
                     />
                 );
             case 'camera':
@@ -420,8 +500,7 @@ export const ProtectedApp = ({
                     onStateChange={handlePdfStateChange}
                 />;
             case 'loading':
-                // Pass a boolean to indicate whether the analysis failed. analysisResult will be null on first scan, and not null on subsequent successful scans.
-                return <LoadingView onCancel={resetToInitial} scanFailed={!isAnalyzing && !analysisResult} onRetry={handleRescan} />;
+                return <LoadingView onCancel={resetToInitial} scanFailed={scanFailed} onRetry={() => imageData && handleCropConfirm(imageData)} message={loadingMessage} imageFile={imageData} tiles={loadingTiles} />;
             case 'result':
                 return analysisResult && (
                     <ResultView 
@@ -452,7 +531,11 @@ export const ProtectedApp = ({
                         initialFen={analysisResult.fen}
                         scanDuration={analysisResult.scanDuration}
                         analysisDetails={analysisResult.details}
-                        onBack={() => setAppState(previousAppState)}
+                        onBack={() => {
+                            setInitialGameHistory(null);
+                            setLoadedGameId(undefined);
+                            setAppState('result');
+                        }}
                         onHome={resetToInitial}
                         appSettings={appSettings}
                         onNextPuzzle={handleNextPuzzle}
@@ -483,5 +566,18 @@ export const ProtectedApp = ({
         }
     };
 
-    return renderContent();
+    return (
+        <>
+            {renderContent()}
+            <ConfirmationDialog
+                isOpen={showRecoveryDialog}
+                title="Scan Failed"
+                message={`Analysis of the new image failed. Would you like to load the last successful scan from ${recoveryScan ? new Date(recoveryScan.timestamp).toLocaleString() : ''}?`}
+                onConfirm={handleConfirmRecovery}
+                onClose={handleDeclineRecovery}
+                confirmText="Load Last Scan"
+                cancelText="Show Failure Details"
+            />
+        </>
+    );
 };

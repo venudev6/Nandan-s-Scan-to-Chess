@@ -25,12 +25,16 @@ interface AuthContextType {
     loginWithGoogle: (credential: string) => Promise<User | null>;
     register: (email: string, pass: string) => Promise<{ success: boolean; message: string; }>;
     logout: () => void;
-    updateUser: (updatedDetails: { name?: string, about?: string }) => Promise<User>;
+    updateUser: (updatedDetails: { name?: string, about?: string, photoUrl?: string }) => Promise<User>;
     authFlowVisible: boolean;
     requestAuthFlow: () => void;
     hideAuthFlow: () => void;
     driveAccessToken: string | null;
     authorizeDrive: () => void;
+    setPin: (pin: string) => Promise<User>;
+    verifyPin: (pin: string) => Promise<boolean>;
+    requestPinReset: () => Promise<string>;
+    resetPin: (token: string, newPin: string) => Promise<User>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -177,11 +181,35 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         }
     };
 
-    const updateUser = async (updatedDetails: { name?: string, about?: string }): Promise<User> => {
+    const updateUser = async (updatedDetails: { name?: string, about?: string, photoUrl?: string }): Promise<User> => {
         if (!user) {
             throw new Error("Cannot update profile when not logged in.");
         }
         const updatedUser = await authService.updateUser({ ...updatedDetails, id: user.id });
+        setUser(updatedUser);
+        return updatedUser;
+    };
+
+    const setPin = async (pin: string) => {
+        if (!user) throw new Error("Not logged in");
+        const updatedUser = await authService.setPin(user.id, pin);
+        setUser(updatedUser);
+        return updatedUser;
+    };
+
+    const verifyPin = async (pin: string) => {
+        if (!user) throw new Error("Not logged in");
+        return await authService.verifyPin(user.id, pin);
+    };
+
+    const requestPinReset = async () => {
+        if (!user) throw new Error("Not logged in");
+        return await authService.requestPinReset(user.id);
+    };
+
+    const resetPin = async (token: string, newPin: string) => {
+        if (!user) throw new Error("Not logged in");
+        const updatedUser = await authService.resetPin(token, newPin);
         setUser(updatedUser);
         return updatedUser;
     };
@@ -200,6 +228,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         hideAuthFlow: () => setAuthFlowVisible(false),
         driveAccessToken,
         authorizeDrive,
+        setPin,
+        verifyPin,
+        requestPinReset,
+        resetPin,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

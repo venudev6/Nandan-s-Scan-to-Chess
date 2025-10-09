@@ -26,7 +26,11 @@ export interface User {
     status: UserStatus;
     name?: string;
     about?: string;
+    photoUrl?: string;
     confirmationToken?: string; // Token used for email verification
+    pinHash?: string | null; // Store a hash of the 4-digit PIN
+    pinResetToken?: string | null;
+    pinResetExpires?: number | null;
 }
 
 /**
@@ -103,12 +107,36 @@ export interface StoredGame {
 }
 
 /**
+ * Represents the details from local post-processing of the AI result.
+ */
+export interface PostProcessDetails {
+  orientationCorrected: boolean;
+  autoFixes: string[];
+  minimumConfidence: number | null;
+  orientationScore: number | null;
+}
+
+/**
  * Represents the details returned by the AI model's analysis.
  */
 export interface AnalysisDetails {
-    confidence: number | null; // The AI's confidence in the scan (0.0 to 1.0).
+    confidence: number | null; // The AI's average confidence in the scan (0.0 to 1.0).
     reasoning: string | null;  // The AI's reasoning for its confidence score.
     uncertainSquares?: string[]; // Squares the AI is unsure about, e.g., ['e4', 'd5']
+    postProcess?: PostProcessDetails;
+    meta?: {
+      boardHash?: string;
+    };
+    timingSummary?: {
+        image_hashing_ms?: number;
+        board_detection_ms?: number;
+        perspective_warp_ms?: number;
+        tile_slicing_ms?: number;
+        gemini_classification_ms: number;
+        post_processing_ms: number;
+        total_scan_ms: number;
+    };
+    failureReason?: string;
 }
 
 /**
@@ -129,4 +157,67 @@ export interface StoredPdfPuzzles {
     pdfId: number;
     page: number;
     boundingBoxes: BoundingBox[];
+}
+
+
+// --- Client-Side Vision Pipeline Types ---
+
+export interface VisionPipelineInput {
+  image: string; // base64 or url
+  source_type: "pdf_raster" | "pdf_vector" | "photo";
+  onProgress: (message: string) => void;
+  confidence_threshold?: number;
+}
+
+export interface TileInfo {
+    square: string;
+    class: string; // e.g., 'wP', 'bN', 'empty'
+    confidence: number;
+}
+
+export interface Timings {
+    end_to_end: number;
+    detect_and_warp: number;
+    classify_tiles: number;
+}
+
+export interface VisionResult {
+    homography: number[];
+    warped_image_b64: string;
+    tiles: TileInfo[];
+    fen: string;
+    validator: { violations: string[] };
+    timings: Timings;
+}
+
+/**
+ * Represents the JSON structure returned by the Gemini board feature detection step.
+ */
+export interface BoardFeatures {
+  corners: {
+    top_left: [number, number];
+    top_right: [number, number];
+    bottom_right: [number, number];
+    bottom_left: [number, number];
+  };
+  homography: number[][];
+  boundary_confidence: number;
+  active_turn: 'w' | 'b' | null;
+  turn_confidence: number;
+  labels: {
+    type: "file" | "rank";
+    label: string;
+    x: number;
+    y: number;
+    confidence: number;
+  }[];
+  reference_map: {
+    a1_corner: "bottom_left" | "bottom_right" | "top_left" | "top_right";
+    h1_corner: string;
+    a8_corner: string;
+    h8_corner: string;
+  } | null;
+  reference_confidence: number;
+  auto_detect: boolean;
+  notes: string;
 }

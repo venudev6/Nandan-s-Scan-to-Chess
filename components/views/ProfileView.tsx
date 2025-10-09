@@ -55,8 +55,8 @@ const ProfileView = ({ onBack }: ProfileViewProps) => {
         <div className="card admin-panel profile-view">
             <div className="admin-header">
                 <h1>My Profile</h1>
-                <button className="btn btn-secondary" onClick={onBack}>
-                    <BackIcon /> Back to App
+                <button className="btn btn-secondary" onClick={onBack} aria-label="Back to App">
+                    <BackIcon /> Back
                 </button>
             </div>
 
