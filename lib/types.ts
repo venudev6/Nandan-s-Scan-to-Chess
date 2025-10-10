@@ -111,7 +111,7 @@ export interface StoredGame {
  */
 export interface PostProcessDetails {
   orientationCorrected: boolean;
-  autoFixes: string[];
+  autoFixes: { message: string, type: 'fix' | 'warning' }[];
   minimumConfidence: number | null;
   orientationScore: number | null;
 }
@@ -137,6 +137,11 @@ export interface AnalysisDetails {
         total_scan_ms: number;
     };
     failureReason?: string;
+    tokenUsage?: {
+      totalTokens: number;
+    };
+    costEstimateINR?: number;
+    geminiScans?: { square: string, piece: string, confidence: number }[];
 }
 
 /**

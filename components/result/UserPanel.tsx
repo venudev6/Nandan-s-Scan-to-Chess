@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import React, { useState, useRef, useEffect } from 'react';
-import { UserCircleIcon, LogoutIcon, AccountIcon, BookmarkIcon, HistoryIcon, SettingsIcon, ChevronRightIcon, BoardIcon, GameplayIcon, ExternalLinkIcon, LockIcon, CheckIcon } from '../ui/Icons';
+import { UserCircleIcon, LogoutIcon, AccountIcon, BookmarkIcon, HistoryIcon, SettingsIcon, ChevronRightIcon, BoardIcon, GameplayIcon, ExternalLinkIcon, LockIcon, CheckIcon, WarningIcon } from '../ui/Icons';
 import type { User, AnalysisDetails } from '../../lib/types';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { PieceSetSelectorModal } from '../ui/PieceSetSelectorModal';
@@ -122,12 +122,63 @@ const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGames
                 </div>
             )}
 
+            {analysisDetails && (analysisDetails.tokenUsage || analysisDetails.geminiScans) && (
+                 <div className="scan-timing-details gemini-details">
+                    <h4>Gemini Classification</h4>
+                    <ul>
+                        {analysisDetails.tokenUsage && (
+                            <li>
+                                <span>Token Usage</span>
+                                <strong>~{analysisDetails.tokenUsage.totalTokens.toLocaleString()} tokens</strong>
+                            </li>
+                        )}
+                        {analysisDetails.costEstimateINR !== undefined && (
+                             <li>
+                                <span>Est. Cost</span>
+                                <strong>₹{analysisDetails.costEstimateINR.toFixed(2)}</strong>
+                            </li>
+                        )}
+                    </ul>
+
+                    {analysisDetails.geminiScans && analysisDetails.geminiScans.filter(s => s.piece !== 'empty').length > 0 && (
+                        <div className="individual-scans">
+                            <h5>Individual Scans</h5>
+                            <div className="scans-grid">
+                                {analysisDetails.geminiScans
+                                    .filter(scan => scan.piece !== 'empty')
+                                    .sort((a, b) => {
+                                        const rankA = a.square[1];
+                                        const fileA = a.square[0];
+                                        const rankB = b.square[1];
+                                        const fileB = b.square[0];
+                                        if (rankA !== rankB) {
+                                            return rankB.localeCompare(rankA); // Sort by rank descending (8 -> 1)
+                                        }
+                                        return fileA.localeCompare(fileB); // Then by file ascending (a -> h)
+                                    })
+                                    .map(scan => (
+                                        <div key={scan.square} className="scan-item">
+                                            <span className="scan-square">{scan.square}:</span>
+                                            <span className="scan-piece">{scan.piece}</span>
+                                            <span className="scan-confidence">({(scan.confidence * 100).toFixed(0)}%)</span>
+                                        </div>
+                                    ))
+                                }
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {analysisDetails?.postProcess?.autoFixes && analysisDetails.postProcess.autoFixes.length > 0 && (
                 <div className="post-scan-validations">
                     <h4>Post-Scan Validations ({analysisDetails.postProcess.autoFixes.length})</h4>
                     <ul>
                         {analysisDetails.postProcess.autoFixes.map((fix, index) => (
-                            <li key={index}><CheckIcon /> {fix}</li>
+                            <li key={index} className={fix.type}>
+                                {fix.type === 'fix' ? <CheckIcon /> : <WarningIcon />}
+                                {fix.message}
+                            </li>
                         ))}
                     </ul>
                 </div>

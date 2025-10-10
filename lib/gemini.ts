@@ -139,7 +139,7 @@ export const postProcessAnalysis = (
   details: PostProcessDetails;
 } => {
   let processedTiles = JSON.parse(JSON.stringify(tiles));
-  const autoFixes: string[] = [];
+  const autoFixes: { message: string, type: 'fix' | 'warning' }[] = [];
   
   // --- King Validation ---
   const countPieces = (pieceCode: string) => processedTiles.filter(t => t.piece === pieceCode).length;
@@ -148,7 +148,7 @@ export const postProcessAnalysis = (
     if (whitePieces.length > 0) {
         whitePieces.sort((a, b) => b.confidence - a.confidence);
         const tileToFix = processedTiles.find(t => t.square === whitePieces[0].square)!;
-        autoFixes.push(`Changed ${pieceToDisplay(tileToFix.piece)} on ${tileToFix.square} to White King (was missing).`);
+        autoFixes.push({ message: `Changed ${pieceToDisplay(tileToFix.piece)} on ${tileToFix.square} to White King (was missing).`, type: 'fix' });
         tileToFix.piece = 'wK';
     }
   }
@@ -157,7 +157,7 @@ export const postProcessAnalysis = (
     if (blackPieces.length > 0) {
         blackPieces.sort((a, b) => b.confidence - a.confidence);
         const tileToFix = processedTiles.find(t => t.square === blackPieces[0].square)!;
-        autoFixes.push(`Changed ${pieceToDisplay(tileToFix.piece)} on ${tileToFix.square} to Black King (was missing).`);
+        autoFixes.push({ message: `Changed ${pieceToDisplay(tileToFix.piece)} on ${tileToFix.square} to Black King (was missing).`, type: 'fix' });
         tileToFix.piece = 'bK';
     }
   }
@@ -167,10 +167,41 @@ export const postProcessAnalysis = (
       const rank = tile.square[1];
       if ((tile.piece === 'wP' && (rank === '8' || rank === '1')) || (tile.piece === 'bP' && (rank === '1' || rank === '8'))) {
           const newPiece = tile.piece.startsWith('w') ? 'wQ' : 'bQ';
-          autoFixes.push(`Promoted ${pieceToDisplay(tile.piece)} on ${tile.square} to a Queen.`);
+          autoFixes.push({ message: `Promoted ${pieceToDisplay(tile.piece)} on ${tile.square} to a Queen.`, type: 'fix' });
           tile.piece = newPiece;
       }
   });
+
+    // --- Piece Count Validation ---
+    const pieceCounts: { [key: string]: number } = {};
+    processedTiles.forEach(t => {
+        if (t.piece !== 'empty') pieceCounts[t.piece] = (pieceCounts[t.piece] || 0) + 1;
+    });
+
+    const pieceTypeToName: { [key: string]: string } = { 'P': 'Pawns', 'N': 'Knights', 'B': 'Bishops', 'R': 'Rooks', 'Q': 'Queens' };
+    const pieceLimits: { [key: string]: number } = { 'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1 };
+
+    (['w', 'b'] as const).forEach(color => {
+        Object.keys(pieceLimits).forEach(pieceSymbol => {
+            const pieceCode = `${color}${pieceSymbol}`;
+            const count = pieceCounts[pieceCode] || 0;
+            const limit = pieceLimits[pieceSymbol];
+            if (count > limit) {
+                 const pawnCount = pieceCounts[`${color}P`] || 0;
+                 if (pieceSymbol !== 'P' && pawnCount < 8) {
+                      autoFixes.push({
+                        message: `Found ${count} ${color === 'w' ? 'White' : 'Black'} ${pieceTypeToName[pieceSymbol]}. This may be due to pawn promotion.`,
+                        type: 'warning',
+                    });
+                 } else if (pieceSymbol === 'P' || pawnCount === 8) {
+                     autoFixes.push({
+                        message: `Found ${count} ${color === 'w' ? 'White' : 'Black'} ${pieceTypeToName[pieceSymbol]} (max ${limit} expected).`,
+                        type: 'warning',
+                    });
+                 }
+            }
+        });
+    });
 
   // --- Orientation Fallback (if OCR failed) ---
   let orientationCorrected = false;
@@ -190,7 +221,7 @@ export const postProcessAnalysis = (
       orientationCorrected = orientationScore !== null && orientationScore > 0.6;
       if (orientationCorrected) {
           processedTiles.forEach(tile => { tile.square = flipSquare(tile.square); });
-          autoFixes.push("Board orientation was automatically flipped 180 degrees.");
+          autoFixes.push({ message: "Board orientation was automatically flipped 180 degrees.", type: 'fix' });
       }
   }
 
@@ -340,6 +371,32 @@ export const classifyAndValidate = async (
     const { processedTiles, details: postProcessDetails } = postProcessAnalysis(allClassifiedTiles, detectionResult);
     const post_processing_ms = performance.now() - postProcessStart;
     
+    // --- Token & Cost Estimation ---
+    const PROMPT_CHARS_PER_BATCH = 400; // Estimated characters in the prompt
+    const OUTPUT_CHARS_PER_BATCH = 500; // Estimated characters in the JSON output
+    const TOKENS_PER_CHAR = 1 / 4; // Rule of thumb
+    const TOKENS_PER_IMAGE = 258; // From Gemini 1.5 Flash documentation
+    
+    const numBatches = batches.length;
+    const numImages = nonEmptyTiles.length;
+
+    const textInputTokens = numBatches * PROMPT_CHARS_PER_BATCH * TOKENS_PER_CHAR;
+    const textOutputTokens = numBatches * OUTPUT_CHARS_PER_BATCH * TOKENS_PER_CHAR;
+    const imageTokens = numImages * TOKENS_PER_IMAGE;
+    const totalTokens = Math.round(textInputTokens + textOutputTokens + imageTokens);
+
+    const COST_PER_INPUT_CHAR_USD = 0.00000035; // gemini-2.5-flash prices
+    const COST_PER_OUTPUT_CHAR_USD = 0.00000070;
+    const COST_PER_IMAGE_USD = 0.000125;
+    const USD_TO_INR_RATE = 83.5; // Approximate rate
+
+    const textInputCostUSD = numBatches * PROMPT_CHARS_PER_BATCH * COST_PER_INPUT_CHAR_USD;
+    const textOutputCostUSD = numBatches * OUTPUT_CHARS_PER_BATCH * COST_PER_OUTPUT_CHAR_USD;
+    const imageCostUSD = numImages * COST_PER_IMAGE_USD;
+    const totalCostUSD = textInputCostUSD + textOutputCostUSD + imageCostUSD;
+    const costEstimateINR = totalCostUSD * USD_TO_INR_RATE;
+
+
     // --- Assemble FEN and final details ---
     const piecePlacementFen = tilesToFen(processedTiles);
     let turnColor: PieceColor = 'w';
@@ -352,7 +409,7 @@ export const classifyAndValidate = async (
     const averageConfidence = allConfidences.length > 0 ? allConfidences.reduce((a, b) => a + b, 0) / allConfidences.length : null;
     
     const uncertainSquaresFromAI = processedTiles.filter((t: any) => t.confidence < 0.95).map((t: any) => t.square);
-    const allUncertainSquares = new Set([...uncertainSquaresFromAI, ...postProcessDetails.autoFixes]);
+    const allUncertainSquares = new Set([...uncertainSquaresFromAI, ...postProcessDetails.autoFixes.map(f => f.message)]);
 
     return {
         fen: completedFen,
@@ -363,6 +420,9 @@ export const classifyAndValidate = async (
             uncertainSquares: Array.from(allUncertainSquares),
             postProcess: postProcessDetails,
             meta: { boardHash },
+            tokenUsage: { totalTokens },
+            costEstimateINR,
+            geminiScans: allClassifiedTiles
         },
         post_processing_ms
     };

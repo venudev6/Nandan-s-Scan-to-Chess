@@ -175,16 +175,80 @@
     align-items: flex-start;
     gap: 0.5rem;
     font-size: 0.875rem;
-    color: var(--text-color);
     line-height: 1.4;
 }
 
 .post-scan-validations li svg {
     width: 16px;
     height: 16px;
-    color: var(--success-color);
     flex-shrink: 0;
     margin-top: 2px;
+}
+
+.post-scan-validations li.fix {
+    color: var(--text-color);
+}
+.post-scan-validations li.fix svg {
+    color: var(--success-color);
+}
+
+.post-scan-validations li.warning {
+    color: #92400e; /* amber-900 */
+}
+.post-scan-validations li.warning svg {
+    color: #f59e0b; /* amber-500 */
+}
+
+
+/* Gemini Classification Details */
+.gemini-details {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.75rem;
+}
+
+.individual-scans {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.individual-scans h5 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted-color);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.scans-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.25rem 0.75rem; /* row-gap column-gap */
+    max-height: 150px; /* give it a max height and make it scrollable */
+    overflow-y: auto;
+    font-size: 0.8rem;
+    font-family: monospace;
+    padding-right: 0.5rem; /* space for scrollbar */
+}
+
+.scan-item {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.scan-square {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.scan-piece {
+    color: var(--text-muted-color);
+}
+
+.scan-confidence {
+    color: #9ca3af; /* gray-400 */
+    font-style: italic;
 }
 
 
