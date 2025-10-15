@@ -23,11 +23,21 @@ interface UserPanelProps {
     appSettings: AppSettings;
     scanDuration: number | null;
     analysisDetails: AnalysisDetails | null;
+    debugLog?: string[];
+    bestMove?: string | null;
 }
 
-const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGamesClick, onHistoryClick, onProfileClick, onLoginClick, appSettings, scanDuration, analysisDetails }: UserPanelProps) => {
+const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGamesClick, onHistoryClick, onProfileClick, onLoginClick, appSettings, scanDuration, analysisDetails, debugLog, bestMove }: UserPanelProps) => {
     const [showSettings, setShowSettings] = useState(false);
     const [isPieceSetModalOpen, setIsPieceSetModalOpen] = useState(false);
+    const debugLogRef = useRef<HTMLDivElement>(null);
+
+    // Effect to auto-scroll the debug log
+    useEffect(() => {
+        if (debugLogRef.current) {
+            debugLogRef.current.scrollTop = debugLogRef.current.scrollHeight;
+        }
+    }, [debugLog]);
 
     const getConfidenceClass = (confidence: number | null) => {
         if (confidence === null || confidence === undefined) return '';
@@ -53,7 +63,7 @@ const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGames
                     <div className="user-avatar"><UserCircleIcon /></div>
                     <div className="user-info">
                         <span className="user-email">Guest User</span>
-                        <span className="role-badge role-guest">Trial</span>
+                        <span className={`role-badge role-guest`}>Trial</span>
                     </div>
                 </div>
                 <div className="guest-panel-content">
@@ -266,13 +276,29 @@ const UserPanel = ({ user, isLoggedIn, onLogout, onAdminPanelClick, onSavedGames
                         </div>
                     </div>
                 )}
-
-                <div className="logout-wrapper">
-                    <button className="user-menu-item" onClick={onLogout} title="Log out">
-                        <LogoutIcon /> <span>Logout</span>
-                    </button>
-                </div>
             </nav>
+             {bestMove && (
+                <div className="engine-analysis-section">
+                    <h4>Engine Analysis</h4>
+                    <div className="engine-analysis-line">
+                        <strong>Best Move:</strong>
+                        <span>{bestMove}</span>
+                    </div>
+                </div>
+            )}
+            {debugLog && debugLog.length > 0 && (
+                <div className="engine-debug-log-section">
+                    <h4>Engine Debug Log</h4>
+                    <div className="engine-debug-log" ref={debugLogRef}>
+                        {debugLog.map((line, index) => <div key={index}>{line}</div>)}
+                    </div>
+                </div>
+            )}
+            <div className="logout-wrapper">
+                <button className="user-menu-item" onClick={onLogout} title="Log out">
+                    <LogoutIcon /> <span>Logout</span>
+                </button>
+            </div>
         </aside>
     );
 };

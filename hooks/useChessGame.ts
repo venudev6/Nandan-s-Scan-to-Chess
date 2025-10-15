@@ -62,7 +62,7 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
     }, []);
     
     // Function to make a move and update state
-    const makeMove = useCallback((move: { from: ChessJSSquare, to: ChessJSSquare, promotion?: ChessJSPieceSymbol }) => {
+    const makeMove = useCallback((move: { from: ChessJSSquare, to: ChessJSSquare, promotion?: ChessJSPieceSymbol }): Move | null => {
         const game = gameRef.current;
         const result = game.move(move);
 
@@ -74,7 +74,9 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
                 from: result.from,
                 to: result.to,
                 color: result.color as PieceColor,
-                captured: result.captured as PieceSymbol,
+                // FIX: Store promotion piece and remove unnecessary type cast.
+                captured: result.captured,
+                promotion: result.promotion,
             };
             
             const newHistory = [...history.slice(0, historyIndex + 1), newHistoryEntry];
@@ -87,6 +89,41 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
             setSelectedSquare(null);
             setPossibleMoves([]);
             setPromotionMove(null);
+        }
+
+        return result;
+    }, [history, historyIndex, updateGameState]);
+
+    const makeRawMove = useCallback((move: string | Move) => {
+        const game = gameRef.current;
+        // Need to reset any pending user interactions
+        setSelectedSquare(null);
+        setPossibleMoves([]);
+        setPromotionMove(null);
+
+        const result = game.move(move);
+
+        if (result) {
+            soundManager.play(result.captured ? 'CAPTURE' : 'MOVE');
+            const newHistoryEntry: HistoryEntry = {
+                fen: game.fen(),
+                san: result.san,
+                from: result.from,
+                to: result.to,
+                color: result.color as PieceColor,
+                // FIX: Store promotion piece and remove unnecessary type cast.
+                captured: result.captured,
+                promotion: result.promotion,
+            };
+            
+            // Take history up to current point and add the new move
+            const newHistory = [...history.slice(0, historyIndex + 1), newHistoryEntry];
+            
+            setHistory(newHistory);
+            setHistoryIndex(newHistory.length - 1);
+            updateGameState(game);
+        } else {
+            console.error("Invalid raw move from engine:", move);
         }
 
         return result;
@@ -137,15 +174,15 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
         setPromotionMove(null);
     }, [initialFen, updateGameState]);
     
-    const handleSquareClick = useCallback((pos: { row: number, col: number }) => {
-        if (isGameOver) return;
+    const handleSquareClick = useCallback((pos: { row: number, col: number }): Move | null => {
+        if (isGameOver) return null;
 
         const square = (FILES[pos.col] + RANKS[7 - pos.row]) as ChessJSSquare;
         
         if (selectedSquare === square) {
             setSelectedSquare(null);
             setPossibleMoves([]);
-            return;
+            return null;
         }
 
         if (selectedSquare) {
@@ -153,8 +190,9 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
             if (move) {
                 if (move.flags.includes('p')) { // 'p' for promotion
                     setPromotionMove({ from: move.from, to: move.to });
+                    return null;
                 } else {
-                    makeMove({ from: move.from, to: move.to });
+                   return makeMove({ from: move.from, to: move.to });
                 }
             } else {
                 const piece = gameRef.current.get(square);
@@ -177,13 +215,16 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
                 soundManager.play('MOVE');
             }
         }
+        return null;
     }, [isGameOver, turn, selectedSquare, makeMove]);
 
-    const handlePromotion = useCallback((piece: ChessJSPieceSymbol | null) => {
+    const handlePromotion = useCallback((piece: ChessJSPieceSymbol | null): Move | null => {
+        let result = null;
         if (promotionMove && piece) {
-            makeMove({ ...promotionMove, promotion: piece });
+            result = makeMove({ ...promotionMove, promotion: piece });
         }
         setPromotionMove(null);
+        return result;
     }, [promotionMove, makeMove]);
     
     const navigateHistory = useCallback((index: number) => {
@@ -198,6 +239,19 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
         setSelectedSquare(null);
         setPossibleMoves([]);
     }, [history, initialFen, updateGameState]);
+
+    const undoLastMove = useCallback(() => {
+        const game = gameRef.current;
+        const lastMove = game.undo();
+        if (lastMove) {
+            updateGameState(game);
+            const newHistory = history.slice(0, historyIndex);
+            setHistory(newHistory);
+            setHistoryIndex(newHistory.length - 1);
+            setSelectedSquare(null);
+            setPossibleMoves([]);
+        }
+    }, [history, historyIndex, updateGameState]);
     
     return {
         game: gameRef.current,
@@ -211,6 +265,8 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
         handleSquareClick,
         handlePromotion,
         navigateHistory,
+        makeRawMove,
+        undoLastMove,
         isGameOver,
         isCheckmate,
         isCheck,

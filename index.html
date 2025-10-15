@@ -46,6 +46,7 @@
     <link rel="stylesheet" href="/components/views/ProfileView.css">
     <link rel="stylesheet" href="/components/ui/PieceSetSelectorModal.css">
     <link rel="stylesheet" href="/components/ui/UpdatePrompt.css">
+    <link rel="stylesheet" href="/components/ui/EvaluationBar.css">
 
     <!-- Google Identity Services Script -->
     <script src="https://accounts.google.com/gsi/client" async defer onload="onGoogleLibraryLoad()"></script>
@@ -142,7 +143,7 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
+          navigator.serviceWorker.register('sw.js').then(registration => {
             console.log('Service Worker registered: ', registration);
             registration.onupdatefound = () => {
               const installingWorker = registration.installing;

@@ -91,6 +91,8 @@ export interface HistoryEntry {
     to: ChessJSSquare;    // The ending square of the move (e.g., "f3").
     color: PieceColor;    // The color of the player who made the move.
     captured?: PieceSymbol; // The type of piece captured, if any.
+    // FIX: Add optional 'promotion' property to support promotion moves.
+    promotion?: PieceSymbol;
 }
 
 /**
