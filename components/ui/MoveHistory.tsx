@@ -90,7 +90,7 @@ const MoveHistory = ({ history, historyIndex, onNavigate }: MoveHistoryProps) =>
                                         // Attach the ref to the active move element.
                                         ref={historyIndex === white.index ? activeMoveRef : null}
                                         className={`move-notation ${historyIndex === white.index ? 'active' : ''}`}
-                                        onClick={() => { soundManager.play('UI_CLICK'); onNavigate(white.index); }}
+                                        onClick={() => { onNavigate(white.index); }}
                                         role="button"
                                         tabIndex={0}
                                     >
@@ -104,7 +104,7 @@ const MoveHistory = ({ history, historyIndex, onNavigate }: MoveHistoryProps) =>
                                     <span
                                         ref={historyIndex === black.index ? activeMoveRef : null}
                                         className={`move-notation ${historyIndex === black.index ? 'active' : ''}`}
-                                        onClick={() => { soundManager.play('UI_CLICK'); onNavigate(black.index); }}
+                                        onClick={() => { onNavigate(black.index); }}
                                         role="button"
                                         tabIndex={0}
                                     >

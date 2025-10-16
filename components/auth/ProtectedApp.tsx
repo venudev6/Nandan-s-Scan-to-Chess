@@ -189,6 +189,13 @@ export const ProtectedApp = ({
 
         return () => window.removeEventListener('pointerdown', initializeSoundOnInteraction);
     }, [loadStoredPdfs]);
+    
+    // Play an error sound whenever an error is set.
+    useEffect(() => {
+        if (error) {
+            soundManager.play('ERROR');
+        }
+    }, [error]);
 
     // --- NAVIGATION & STATE RESET ---
     const resetToInitial = useCallback(() => {
@@ -384,7 +391,6 @@ export const ProtectedApp = ({
     };
 
     const handleAnalyze = (fen: string) => {
-        soundManager.play('UI_CLICK');
         setAnalysisResult({ ...analysisResult!, fen });
         setInitialGameHistory(null);
         setLoadedGameId(undefined);
@@ -438,7 +444,6 @@ export const ProtectedApp = ({
     };
     
     const handleBack = () => {
-        soundManager.play('UI_CLICK');
         setAppState(previousAppState);
     };
 

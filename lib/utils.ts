@@ -420,6 +420,90 @@ export const generateBoardThumbnail = (fen: string): string => {
 };
 
 /**
+ * Generates a lightweight SVG representation of a chessboard from a FEN string.
+ * This function is designed to be used for generating downloadable images.
+ * @param fen The FEN string of the position to render.
+ * @param pieceTheme This parameter is currently ignored, but is kept for future compatibility. Unicode pieces are used.
+ * @returns An SVG string.
+ */
+export const generateBoardImageSVGString = (fen: string, pieceTheme: string): string => {
+    try {
+        const { board } = fenToBoardState(fen);
+        const size = 512; // Larger size for better quality download
+        const squareSize = size / 8;
+        let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">`;
+
+        // Board squares
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const isLight = (r + c) % 2 !== 0;
+                svg += `<rect x="${c * squareSize}" y="${r * squareSize}" width="${squareSize}" height="${squareSize}" fill="${isLight ? '#f0d9b5' : '#b58863'}" />`;
+            }
+        }
+
+        // Pieces
+        board.forEach((row, r) => {
+            row.forEach((piece, c) => {
+                if (piece) {
+                    const unicode = UNICODE_PIECES[piece.color][piece.type];
+                    const pieceColor = piece.color === 'w' ? '#fff' : '#000';
+                    const strokeColor = piece.color === 'w' ? '#000' : '#fff';
+                    svg += `<text x="${c * squareSize + squareSize / 2}" y="${r * squareSize + squareSize / 2}" font-size="${squareSize * 0.8}" text-anchor="middle" dominant-baseline="central" fill="${pieceColor}" stroke="${strokeColor}" stroke-width="1" style="paint-order: stroke;">${unicode}</text>`;
+                }
+            });
+        });
+
+        svg += '</svg>';
+        return svg;
+    } catch (e) {
+        console.error("Failed to generate board image SVG for FEN:", fen, e);
+        // Return a simple error SVG
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#cc0000" /><text x="50%" y="50%" font-size="48" fill="white" text-anchor="middle" dominant-baseline="middle">Error</text></svg>`;
+    }
+};
+
+/**
+ * Converts an SVG string to a PNG data URL.
+ * @param svgString The raw SVG string.
+ * @param width The desired width of the output PNG.
+ * @param height The desired height of the output PNG.
+ * @returns A promise that resolves with the PNG data URL.
+ */
+export const svgToPngDataUrl = (svgString: string, width: number, height: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                // Draw a white background first to handle transparent SVGs
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+                const pngDataUrl = canvas.toDataURL('image/png');
+                URL.revokeObjectURL(url);
+                resolve(pngDataUrl);
+            } else {
+                URL.revokeObjectURL(url);
+                reject(new Error('Could not get 2D context from canvas.'));
+            }
+        };
+
+        img.onerror = (err) => {
+            URL.revokeObjectURL(url);
+            reject(new Error(`Failed to load SVG into image element.`));
+        };
+
+        img.src = url;
+    });
+};
+
+/**
  * Converts an ArrayBuffer to a hex string.
  * @param buffer The ArrayBuffer to convert.
  * @returns A string representing the buffer in hexadecimal.

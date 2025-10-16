@@ -9,7 +9,7 @@ import Chessboard from '../Chessboard';
 import CapturedPieces from '../ui/CapturedPieces';
 import MoveHistory from '../ui/MoveHistory';
 import { soundManager } from '../../lib/SoundManager';
-import { BackIcon, FlipIcon, FirstMoveIcon, PrevMoveIcon, NextMoveIcon, LastMoveIcon, BookmarkIcon, BookmarkFilledIcon, CheckIcon, CloseIcon, RobotIcon, HumanIcon } from '../ui/Icons';
+import { BackIcon, FlipIcon, FirstMoveIcon, PrevMoveIcon, NextMoveIcon, LastMoveIcon, BookmarkIcon, BookmarkFilledIcon, CheckIcon, CloseIcon, RobotIcon, HumanIcon, ShareIcon } from '../ui/Icons';
 import { PIECE_SETS, PIECE_NAMES } from '../../lib/chessConstants';
 import { useChessGame } from '../../hooks/useChessGame';
 import { useBoardDrawing } from '../../hooks/useBoardDrawing';
@@ -20,6 +20,7 @@ import type { AppState, PieceColor, PieceSymbol, HistoryEntry, User, StoredGame,
 import UserPanel from '../result/UserPanel';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useStockfish } from '../../hooks/useStockfish';
+import { ShareModal } from '../ui/ShareModal';
 import './SolveView.css';
 
 type AppSettingsHook = ReturnType<typeof useAppSettings>;
@@ -157,19 +158,19 @@ const SolveView = ({
     const { capturedWhitePieces, capturedBlackPieces, materialAdvantage } = useCapturedPieces(history, historyIndex);
 
     const stockfish = useStockfish();
-    const { evaluatePosition, stopEvaluation, logDebug, isReady: isEngineReady, isThinking, evaluation, isMate, depth, pv, debugLog, bestMove } = stockfish;
+    const { evaluatePosition, stopEvaluation, logDebug, isReady: isEngineReady, isThinking, bestMove, debugLog } = stockfish;
 
-    const [isEngineEnabled, setIsEngineEnabled] = useState(false);
-    const [playerSide, setPlayerSide] = useState<'w' | 'b' | null>(null);
+    const [playerSide, setPlayerSide] = useState<'w' | 'b' | null>(appSettings.engineEnabled ? turn : null);
 
     const [cooldown, setCooldown] = useState(appSettings.analysisCooldown);
     const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
     const [bookmarkedGame, setBookmarkedGame] = useState<StoredGame | null>(null);
     const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [bookmarkAnchorRect, setBookmarkAnchorRect] = useState<DOMRect | null>(null);
     const bookmarkButtonRef = useRef<HTMLButtonElement>(null);
 
-    const PIECE_COMPONENTS = PIECE_SETS[appSettings.pieceTheme as keyof typeof PIECE_SETS] || PIECE_SETS['merida'];
+    const PIECE_COMPONENTS = PIECE_SETS[appSettings.pieceTheme as keyof typeof PIECE_SETS] || PIECE_SETS['staunty'];
     
     const initialFenRef = useRef(initialFen);
     const historyRef = useRef(history);
@@ -196,10 +197,9 @@ const SolveView = ({
         setArrows([]);
         setHighlightedSquares([]);
 
-        // If playing vs engine, only allow moves for the player's side.
         if (playerSide && turn !== playerSide) {
             logDebug(`Move ignored: Not player's turn (Player: ${playerSide}, Current: ${turn})`);
-            return; // Not the player's turn
+            return; 
         }
 
         const moveResult = originalHandleSquareClick(pos);
@@ -207,49 +207,33 @@ const SolveView = ({
             logDebug(`User move: ${moveResult.san}`);
         }
     }, [originalHandleSquareClick, setArrows, playerSide, turn, logDebug]);
-    
-    const handleEngineToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const enabled = e.target.checked;
-        setIsEngineEnabled(enabled);
 
-        if (enabled) {
-            // When engine is enabled, start "Play vs. Computer" mode.
-            // The user will play as the color whose turn it is currently.
+    useEffect(() => {
+        if (appSettings.engineEnabled) {
             setPlayerSide(turn);
         } else {
-            // When engine is disabled, stop "Play vs. Computer" mode.
             setPlayerSide(null);
             if (isThinking) {
                 stopEvaluation();
             }
         }
-    };
-
-
-    // Effect for passive engine evaluation when not playing against it
-    useEffect(() => {
-        if (isEngineEnabled && !isGameOver && !playerSide) {
-            const timer = setTimeout(() => {
-                evaluatePosition(game.fen(), 15);
-            }, 100);
-            return () => clearTimeout(timer);
-        } else if (!isEngineEnabled && isThinking) {
-            stopEvaluation();
-        }
-    }, [isEngineEnabled, isGameOver, game, evaluatePosition, stopEvaluation, historyIndex, playerSide]);
+    }, [appSettings.engineEnabled]); 
     
-    // Effect for "Play vs. Computer" mode
+    const difficultyToDepth = {
+        'standard': 10,
+        'hard': 15,
+        'extra-hard': 20,
+    };
+    const currentDepth = difficultyToDepth[appSettings.engineDifficulty];
+    
     useEffect(() => {
-        // Check if it's the engine's turn to move.
-        if (playerSide && turn !== playerSide && !isGameOver && isEngineEnabled && isEngineReady && !isThinking) {
+        if (playerSide && turn !== playerSide && !isGameOver && appSettings.engineEnabled && isEngineReady && !isThinking) {
             const currentFen = game.fen();
-            logDebug(`Requesting engine move for FEN: ${currentFen}`);
+            logDebug(`Requesting engine move for FEN: ${currentFen} at depth ${currentDepth}`);
             
-            // Use a callback to make the move once the engine finds it.
-            evaluatePosition(currentFen, 15, (engineBestMove) => {
+            evaluatePosition(currentFen, currentDepth, (engineBestMove) => {
                 if (engineBestMove) {
                     logDebug(`Engine best move received: ${engineBestMove}.`);
-                    // Use a small timeout to make the move feel more natural.
                     setTimeout(() => {
                         const moveResult = makeRawMove(engineBestMove);
                         if(moveResult && moveResult.san) {
@@ -261,7 +245,7 @@ const SolveView = ({
                 }
             });
         }
-    }, [historyIndex, playerSide, turn, isGameOver, isEngineEnabled, isEngineReady, isThinking, evaluatePosition, logDebug, makeRawMove, game]);
+    }, [historyIndex, playerSide, turn, isGameOver, appSettings.engineEnabled, isEngineReady, isThinking, evaluatePosition, logDebug, makeRawMove, game, currentDepth]);
     
     useEffect(() => { initialFenRef.current = initialFen; }, [initialFen]);
     useEffect(() => { historyRef.current = history; }, [history]);
@@ -303,7 +287,6 @@ const SolveView = ({
     }, [cooldown]);
 
     const handleBookmarkClick = () => {
-        soundManager.play('UI_CLICK');
         if (bookmarkButtonRef.current) {
             setBookmarkAnchorRect(bookmarkButtonRef.current.getBoundingClientRect());
         }
@@ -347,20 +330,32 @@ const SolveView = ({
     return (
         <div className="card solve-view-card">
             <div className="solve-view-container">
-                 <UserPanel user={user} isLoggedIn={isLoggedIn} onLogout={onLogout} onAdminPanelClick={onAdminPanelClick} onSavedGamesClick={onSavedGamesClick} onHistoryClick={onHistoryClick} onLoginClick={onAuthRequired} onProfileClick={onProfileClick} appSettings={appSettings} scanDuration={scanDuration} analysisDetails={analysisDetails} debugLog={debugLog} bestMove={bestMove} />
+                 <UserPanel 
+                    user={user} 
+                    isLoggedIn={isLoggedIn} 
+                    onLogout={onLogout} 
+                    onAdminPanelClick={onAdminPanelClick} 
+                    onSavedGamesClick={onSavedGamesClick} 
+                    onHistoryClick={onHistoryClick} 
+                    onLoginClick={onAuthRequired} 
+                    onProfileClick={onProfileClick} 
+                    appSettings={appSettings} 
+                    scanDuration={scanDuration} 
+                    analysisDetails={analysisDetails} 
+                    debugLog={debugLog} 
+                    bestMove={bestMove}
+                    displayMode="compact"
+                    isEngineReady={isEngineReady}
+                    isThinking={isThinking}
+                    playerSide={playerSide}
+                    turn={turn}
+                />
                 <div className="board-analysis-wrapper">
                     <div className="board-area" ref={boardAreaRef} onContextMenu={(e) => e.preventDefault()} onPointerDown={handleBoardPointerDown} onPointerMove={handleBoardPointerMove} onPointerUp={handleBoardPointerUp}>
                         <Chessboard boardState={currentBoard} onSquareClick={handleSquareClick} selectedSquare={selectedSquareCoords} lastMove={lastMove} possibleMoves={possibleMoves} userHighlights={highlightedSquares} isFlipped={isFlipped} pieceTheme={appSettings.pieceTheme} />
-                        {playerSide && turn !== playerSide && isThinking && (
-                            <div className="thinking-overlay">
-                                <div className="thinking-indicator">
-                                    <RobotIcon />
-                                    <span>Computer is thinking...</span>
-                                </div>
-                            </div>
-                        )}
+                        
                         {renderedArrows.length > 0 && ( <svg className="drawing-overlay" width="100%" height="100%"><defs><marker id="arrowhead" viewBox="0 -24 41.57 48" refX="0" refY="0" markerUnits="userSpaceOnUse" markerWidth="48" markerHeight="48" orient="auto"><polygon points="41.57,0 0,-24 0,24" /></marker></defs>{renderedArrows}</svg> )}
-                        {isGameOver && ( <div className="game-over-overlay"><h2>{gameStatus}</h2><button className="btn btn-secondary" onClick={() => { soundManager.play('UI_CLICK'); onNextPuzzle(); }}>{nextButtonText}</button></div> )}
+                        {isGameOver && ( <div className="game-over-overlay"><h2>{gameStatus}</h2><button className="btn btn-secondary" onClick={() => { onNextPuzzle(); }}>{nextButtonText}</button></div> )}
                         {showSaveConfirmation && createPortal( <div className="save-toast"><CheckIcon /> Game Saved</div>, document.body )}
                     </div>
                 </div>
@@ -372,64 +367,41 @@ const SolveView = ({
                         </div>
                     </div>
                     <div className="move-navigation-controls">
-                        <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(-1); }} disabled={historyIndex < 0} aria-label="First move" title="Go to the first move"><FirstMoveIcon /></button>
-                        <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(historyIndex - 1); }} disabled={historyIndex < 0} aria-label="Previous move" title="Go to previous move"><PrevMoveIcon /></button>
-                        <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); setIsFlipped(!isFlipped); }} aria-label="Flip board" title="Flip board orientation"><FlipIcon /></button>
-                        <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(historyIndex + 1); }} disabled={historyIndex >= history.length - 1} aria-label="Next move" title="Go to next move"><NextMoveIcon /></button>
-                        <button className="btn-icon" onClick={() => { soundManager.play('UI_CLICK'); navigateHistory(history.length - 1); }} disabled={historyIndex >= history.length - 1} aria-label="Last move" title="Go to the last move"><LastMoveIcon /></button>
+                        <button className="btn-icon" onClick={() => { navigateHistory(-1); }} disabled={historyIndex < 0} aria-label="First move" title="Go to the first move"><FirstMoveIcon /></button>
+                        <button className="btn-icon" onClick={() => { navigateHistory(historyIndex - 1); }} disabled={historyIndex < 0} aria-label="Previous move" title="Go to previous move"><PrevMoveIcon /></button>
+                        <button className="btn-icon" onClick={() => { setIsFlipped(!isFlipped); }} aria-label="Flip board" title="Flip board orientation"><FlipIcon /></button>
+                        <button className="btn-icon" onClick={() => { navigateHistory(historyIndex + 1); }} disabled={historyIndex >= history.length - 1} aria-label="Next move" title="Go to next move"><NextMoveIcon /></button>
+                        <button className="btn-icon" onClick={() => { navigateHistory(history.length - 1); }} disabled={historyIndex >= history.length - 1} aria-label="Last move" title="Go to the last move"><LastMoveIcon /></button>
                     </div>
                     <div className="move-history-wrapper">
                         <MoveHistory history={history} historyIndex={historyIndex} onNavigate={navigateHistory} />
-                        <button ref={bookmarkButtonRef} className={`btn-icon save-game-btn ${bookmarkedGame ? 'bookmarked' : ''}`} onClick={handleBookmarkClick} title={bookmarkedGame ? "Edit Bookmark" : "Bookmark Game"} aria-label={bookmarkedGame ? "Edit Bookmark" : "Bookmark Game"}>{bookmarkedGame ? <BookmarkFilledIcon /> : <BookmarkIcon />}</button>
-                        <BookmarkModal isOpen={isBookmarkModalOpen} onClose={() => setIsBookmarkModalOpen(false)} onSave={handleSaveBookmark} onRemove={handleRemoveBookmark} initialGame={bookmarkedGame} anchorRect={bookmarkAnchorRect} />
-                    </div>
-
-                    <div className="control-section">
-                        <h4>
-                            <span><RobotIcon/> Engine Controls</span>
-                            <div className="engine-toggle-switch" title={isEngineEnabled ? 'Disable Engine & Stop Game' : 'Enable Engine & Play vs. Computer'}>
-                                <label className="switch">
-                                    <input type="checkbox" checked={isEngineEnabled} onChange={handleEngineToggle} />
-                                    <span className="slider round"></span>
-                                </label>
-                            </div>
-                        </h4>
-                        <div className={`analysis-details ${!isEngineEnabled ? 'disabled' : ''}`}>
-                             <div className="engine-status-line">
-                                <strong>Status:</strong>
-                                <span className={`engine-status ${!isEngineEnabled ? 'disabled' : isEngineReady ? 'ready' : 'loading'}`}>
-                                    {isEngineEnabled ? (isEngineReady ? 'Ready' : 'Initializing...') : 'Disabled'}
-                                </span>
-                            </div>
-                            {playerSide && isEngineEnabled && (
-                                <div className="play-vs-computer-status">
-                                    {turn === playerSide ? <HumanIcon/> : <RobotIcon />}
-                                    <span>{turn === playerSide ? `Your turn (as ${playerSide === 'w' ? 'White' : 'Black'})` : "Computer's turn..."}</span>
-                                </div>
-                            )}
-                            {isEngineEnabled && isEngineReady && (
-                                <>
-                                    <div className="engine-analysis-line"><strong>Eval:</strong><span>{isMate ? `M${Math.abs(evaluation ?? 0)}` : ((evaluation ?? 0) / 100).toFixed(2)}</span>{isThinking && <div className="spinner-small"></div>}</div>
-                                    <div className="engine-analysis-line"><strong>Depth:</strong><span>{depth}</span></div>
-                                    <div className="engine-analysis-line"><strong>PV:</strong><span title={pv}>{pv}</span></div>
-                                </>
-                            )}
+                        <div className="move-history-actions">
+                            <button ref={bookmarkButtonRef} className={`btn-icon save-game-btn ${bookmarkedGame ? 'bookmarked' : ''}`} onClick={handleBookmarkClick} title={bookmarkedGame ? "Edit Bookmark" : "Bookmark Game"} aria-label={bookmarkedGame ? "Edit Bookmark" : "Bookmark Game"}>{bookmarkedGame ? <BookmarkFilledIcon /> : <BookmarkIcon />}</button>
+                            <button className="btn-icon share-game-btn" onClick={() => setIsShareModalOpen(true)} title="Share Game"><ShareIcon /></button>
                         </div>
+                        <BookmarkModal isOpen={isBookmarkModalOpen} onClose={() => setIsBookmarkModalOpen(false)} onSave={handleSaveBookmark} onRemove={handleRemoveBookmark} initialGame={bookmarkedGame} anchorRect={bookmarkAnchorRect} />
                     </div>
 
                     <div className="solve-main-actions">
                         <a className={`btn btn-analyze ${cooldown > 0 ? 'disabled' : ''}`} href={`https://www.chess.com/analysis?fen=${encodeURIComponent(game.fen())}&flip=${turn === 'b'}`} target="_blank" rel="noopener noreferrer" onClick={handleAnalysisClick}>Analysis with chess.com {cooldown > 0 ? `(${Math.floor(cooldown/60)}:${String(cooldown%60).padStart(2,'0')})` : ''}</a>
                         <a className={`btn btn-dark ${cooldown > 0 ? 'disabled' : ''}`} href={`https://lichess.org/analysis/standard/${encodeURIComponent(game.fen())}`} target="_blank" rel="noopener noreferrer" onClick={handleAnalysisClick}>Analysis with Lichess.org {cooldown > 0 ? `(${Math.floor(cooldown/60)}:${String(cooldown%60).padStart(2,'0')})` : ''}</a>
                         <div className="result-actions">
-                            <button className="btn btn-secondary btn-back" onClick={() => { soundManager.play('UI_CLICK'); onBack(); }} title={backButtonTitle} aria-label={backButtonTitle}><BackIcon/> Back</button>
-                            <button className="btn btn-secondary" onClick={() => { soundManager.play('UI_CLICK'); onHome(); }} aria-label="Go to Home Screen" title="Return to the home screen">Home</button>
-                            <button className="btn btn-analyze" onClick={() => { soundManager.play('UI_CLICK'); onNextPuzzle(); }} title={nextButtonTitle}>{nextButtonText}</button>
+                            <button className="btn btn-secondary btn-back" onClick={() => { onBack(); }} title={backButtonTitle} aria-label={backButtonTitle}><BackIcon/> Back</button>
+                            <button className="btn btn-secondary" onClick={() => { onHome(); }} aria-label="Go to Home Screen" title="Return to the home screen">Home</button>
+                            <button className="btn btn-analyze" onClick={() => { onNextPuzzle(); }} title={nextButtonTitle}>{nextButtonText}</button>
                         </div>
                     </div>
                 </div>
 
                 {promotionMove && createPortal( <div className="promotion-overlay" onClick={() => handlePromotion(null)}><div className="promotion-choices" onClick={e => e.stopPropagation()}>{(['q', 'r', 'b', 'n'] as PieceSymbol[]).map(p => { const PieceComponent = PIECE_COMPONENTS[turn as PieceColor][p]; return ( <PieceComponent key={p} className="piece" aria-label={`Promote to ${PIECE_NAMES[p]}`} onClick={() => handlePromotion(p as ChessJSPieceSymbol)} /> ); })}</div></div>, document.body )}
             </div>
+             <ShareModal 
+                isOpen={isShareModalOpen} 
+                onClose={() => setIsShareModalOpen(false)} 
+                game={game}
+                boardState={currentBoard}
+                pieceTheme={appSettings.pieceTheme}
+            />
         </div>
     );
 };

@@ -141,26 +141,70 @@ export const postProcessAnalysis = (
   let processedTiles = JSON.parse(JSON.stringify(tiles));
   const autoFixes: { message: string, type: 'fix' | 'warning' }[] = [];
   
-  // --- King Validation ---
   const countPieces = (pieceCode: string) => processedTiles.filter(t => t.piece === pieceCode).length;
-  if (processedTiles.some(t => t.piece.startsWith('w')) && countPieces('wK') === 0) {
-    const whitePieces = processedTiles.filter(t => t.piece.startsWith('w') && t.piece !== 'wK');
-    if (whitePieces.length > 0) {
-        whitePieces.sort((a, b) => b.confidence - a.confidence);
-        const tileToFix = processedTiles.find(t => t.square === whitePieces[0].square)!;
-        autoFixes.push({ message: `Changed ${pieceToDisplay(tileToFix.piece)} on ${tileToFix.square} to White King (was missing).`, type: 'fix' });
-        tileToFix.piece = 'wK';
-    }
-  }
-  if (processedTiles.some(t => t.piece.startsWith('b')) && countPieces('bK') === 0) {
-    const blackPieces = processedTiles.filter(t => t.piece.startsWith('b') && t.piece !== 'bK');
-    if (blackPieces.length > 0) {
-        blackPieces.sort((a, b) => b.confidence - a.confidence);
-        const tileToFix = processedTiles.find(t => t.square === blackPieces[0].square)!;
-        autoFixes.push({ message: `Changed ${pieceToDisplay(tileToFix.piece)} on ${tileToFix.square} to Black King (was missing).`, type: 'fix' });
-        tileToFix.piece = 'bK';
-    }
-  }
+
+  // --- King Validation: A two-step process to guarantee exactly one king per side ---
+
+  // 1. Handle TOO MANY KINGS first. Demote the less confident ones to queens.
+  const handleExtraKings = (color: 'w' | 'b') => {
+      const kingCode = `${color}K`;
+      const queenCode = `${color}Q`;
+      const kingTiles = processedTiles.filter(t => t.piece === kingCode);
+
+      if (kingTiles.length > 1) {
+          // Sort by confidence, highest first
+          kingTiles.sort((a, b) => b.confidence - a.confidence);
+          
+          // Keep the most confident king, change the rest to queens
+          const kingsToChange = kingTiles.slice(1);
+          kingsToChange.forEach(tileToFix => {
+              const originalTileInArray = processedTiles.find(t => t.square === tileToFix.square)!;
+              autoFixes.push({ 
+                  message: `Found ${kingTiles.length} ${color === 'w' ? 'White' : 'Black'} Kings. Changed the one on ${originalTileInArray.square} to a Queen.`, 
+                  type: 'fix' 
+              });
+              originalTileInArray.piece = queenCode;
+          });
+      }
+  };
+
+  handleExtraKings('w');
+  handleExtraKings('b');
+
+  // 2. Handle MISSING KINGS (runs after extra kings are demoted). Promote the best candidate.
+  const handleMissingKing = (color: 'w' | 'b') => {
+      const kingCode = `${color}K`;
+      if (processedTiles.some(t => t.piece.startsWith(color)) && countPieces(kingCode) === 0) {
+          const piecesOfColor = processedTiles.filter(t => t.piece.startsWith(color));
+          if (piecesOfColor.length > 0) {
+              // Prioritize changing a Queen, then other major/minor pieces, then a pawn.
+              const piecePriority = [`${color}Q`, `${color}R`, `${color}B`, `${color}N`, `${color}P`];
+              let tileToChange: { square: string; piece: string; confidence: number } | null = null;
+
+              for (const pieceCode of piecePriority) {
+                  const candidates = piecesOfColor.filter(p => p.piece === pieceCode);
+                  if (candidates.length > 0) {
+                      candidates.sort((a, b) => b.confidence - a.confidence);
+                      tileToChange = candidates[0];
+                      break;
+                  }
+              }
+              
+              // Fallback to highest confidence piece if no specific types were found (unlikely).
+              if (!tileToChange) {
+                   piecesOfColor.sort((a, b) => b.confidence - a.confidence);
+                   tileToChange = piecesOfColor[0];
+              }
+
+              const tileToFix = processedTiles.find(t => t.square === tileToChange!.square)!;
+              autoFixes.push({ message: `Changed ${pieceToDisplay(tileToFix.piece)} on ${tileToFix.square} to ${color === 'w' ? 'White' : 'Black'} King (was missing).`, type: 'fix' });
+              tileToFix.piece = kingCode;
+          }
+      }
+  };
+
+  handleMissingKing('w');
+  handleMissingKing('b');
   
   // --- Pawn Promotion Correction ---
   processedTiles.forEach(tile => {
@@ -185,17 +229,17 @@ export const postProcessAnalysis = (
         Object.keys(pieceLimits).forEach(pieceSymbol => {
             const pieceCode = `${color}${pieceSymbol}`;
             const count = pieceCounts[pieceCode] || 0;
-            const limit = pieceLimits[pieceSymbol];
+            const limit = pieceLimits[pieceSymbol as keyof typeof pieceLimits];
             if (count > limit) {
                  const pawnCount = pieceCounts[`${color}P`] || 0;
                  if (pieceSymbol !== 'P' && pawnCount < 8) {
                       autoFixes.push({
-                        message: `Found ${count} ${color === 'w' ? 'White' : 'Black'} ${pieceTypeToName[pieceSymbol]}. This may be due to pawn promotion.`,
+                        message: `Found ${count} ${color === 'w' ? 'White' : 'Black'} ${pieceTypeToName[pieceSymbol as keyof typeof pieceTypeToName]}. This may be due to pawn promotion.`,
                         type: 'warning',
                     });
                  } else if (pieceSymbol === 'P' || pawnCount === 8) {
                      autoFixes.push({
-                        message: `Found ${count} ${color === 'w' ? 'White' : 'Black'} ${pieceTypeToName[pieceSymbol]} (max ${limit} expected).`,
+                        message: `Found ${count} ${color === 'w' ? 'White' : 'Black'} ${pieceTypeToName[pieceSymbol as keyof typeof pieceTypeToName]} (max ${limit} expected).`,
                         type: 'warning',
                     });
                  }

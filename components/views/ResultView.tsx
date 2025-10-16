@@ -102,12 +102,10 @@ const ResultView = ({
     }, [heldPiece, ghostPosition]);
 
     const handleAnalyzeClick = () => {
-        soundManager.play('UI_CLICK');
         onAnalyze(fen);
     };
 
     const handleBackClick = () => {
-        soundManager.play('UI_CLICK');
         onBack();
     };
 
@@ -145,6 +143,7 @@ const ResultView = ({
                     appSettings={appSettings}
                     scanDuration={scanDuration}
                     analysisDetails={analysisDetails}
+                    displayMode="full"
                 />
                 <EditorBoard
                     board={board}

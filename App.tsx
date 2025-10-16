@@ -139,17 +139,14 @@ const AppContent = () => {
     };
 
     const handleSavedGamesClick = () => {
-        soundManager.play('UI_CLICK');
         handleSetAppState('savedGames');
     };
     
     const handleHistoryClick = () => {
-        soundManager.play('UI_CLICK');
         handleSetAppState('history');
     };
 
     const handleProfileClick = () => {
-        soundManager.play('UI_CLICK');
         handleSetAppState('profile');
     };
 

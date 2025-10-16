@@ -42,6 +42,19 @@ export const useAppSettings = () => {
         return localStorage.getItem('fenCopyLocked') === 'true';
     });
 
+    const [engineEnabled, setEngineEnabled] = useState(() => {
+        const saved = localStorage.getItem('engineEnabled');
+        return saved !== 'false'; // Default to true
+    });
+
+    const [engineDifficulty, setEngineDifficulty] = useState<'standard' | 'hard' | 'extra-hard'>(() => {
+        const saved = localStorage.getItem('engineDifficulty') as 'standard' | 'hard' | 'extra-hard' | null;
+        if (saved && ['standard', 'hard', 'extra-hard'].includes(saved)) {
+            return saved;
+        }
+        return 'standard'; // Default to standard
+    });
+
     const handleCooldownChange = (seconds: number) => {
         if (cooldownLocked) return;
         setAnalysisCooldown(seconds);
@@ -73,6 +86,16 @@ export const useAppSettings = () => {
         localStorage.setItem('fenCopyLocked', String(isLocked));
     };
 
+    const handleEngineEnabledChange = (enabled: boolean) => {
+        setEngineEnabled(enabled);
+        localStorage.setItem('engineEnabled', String(enabled));
+    };
+
+    const handleEngineDifficultyChange = (difficulty: 'standard' | 'hard' | 'extra-hard') => {
+        setEngineDifficulty(difficulty);
+        localStorage.setItem('engineDifficulty', difficulty);
+    };
+
 
     return {
         analysisCooldown,
@@ -81,11 +104,15 @@ export const useAppSettings = () => {
         pieceTheme,
         cooldownLocked,
         fenCopyLocked,
+        engineEnabled,
+        engineDifficulty,
         handleCooldownChange,
         handleBoardThemeChange,
         handleSoundToggle,
         handlePieceThemeChange,
         handleSetCooldownLocked,
         handleSetFenCopyLocked,
+        handleEngineEnabledChange,
+        handleEngineDifficultyChange,
     };
 };

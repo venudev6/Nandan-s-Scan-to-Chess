@@ -320,7 +320,6 @@
     flex-direction: column;
     gap: 1rem;
 }
-
 .user-panel-settings .setting-item-button {
     display: flex;
     justify-content: space-between;
@@ -492,16 +491,67 @@
     color: #4b5563; /* gray-600 */
 }
 
+.collapsible-header {
+    cursor: pointer;
+    border-radius: 0.375rem;
+    padding: 0.25rem;
+    margin: -0.25rem;
+}
+.collapsible-header:hover {
+    background-color: #f3f4f6;
+}
+.collapsible-header svg:last-child {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted-color);
+    transition: transform 0.2s ease;
+}
+
+.engine-setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.engine-setting-item.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.engine-setting-item label {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.engine-setting-item select {
+    background-color: #f3f4f6;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.engine-setting-item select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.engine-analysis-line {
+    display: none;
+}
+
+
 /* Engine Debug Log Section */
 .engine-debug-log-section {
-    margin-top: 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     flex-grow: 1; /* Make this section take up available space */
     min-height: 100px;
-    border-top: 1px solid var(--border-color);
-    padding-top: 0.75rem;
 }
 .engine-debug-log-section h4 {
     font-size: 0.8rem;
@@ -555,7 +605,7 @@
     }
     .user-panel-nav { display: none; }
     
-    .user-panel.guest-panel .guest-panel-content {
+    .guest-panel .guest-panel-content {
         display: none; /* Hide the main guest content, the header is enough */
     }
 
@@ -585,12 +635,12 @@
     .scan-stats-container, .scan-timing-details, .post-scan-validations, .engine-debug-log-section, .logout-wrapper {
         display: none;
     }
+    .control-section {
+        display: none; /* Hide engine controls on mobile for now to save space */
+    }
 }
 
 .engine-analysis-section {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -605,20 +655,92 @@
     margin: 0;
 }
 
-.engine-analysis-section .engine-analysis-line {
+.engine-analysis-line, .best-move-line {
     display: flex;
     gap: 0.75rem;
     align-items: baseline;
     font-family: monospace;
     font-size: 0.85rem;
 }
+.engine-analysis-line.hidden {
+    display: none;
+}
 
-.engine-analysis-section .engine-analysis-line strong {
+.engine-analysis-line strong, .best-move-line strong {
     color: var(--text-muted-color);
     flex-shrink: 0;
 }
 
-.engine-analysis-section .engine-analysis-line span {
+.engine-analysis-line span, .best-move-line span {
     color: var(--text-color);
     font-weight: 600;
+}
+
+.engine-status-line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Inter', sans-serif;
+}
+.engine-status-line strong {
+    font-weight: 500;
+}
+
+.engine-status {
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 1rem;
+    color: var(--text-muted-color);
+    background-color: #e5e7eb;
+}
+.engine-status.ready {
+    color: #166534; /* green-800 */
+    background-color: #dcfce7; /* green-100 */
+}
+.engine-status.loading {
+    color: #9a3412; /* orange-800 */
+    background-color: #ffedd5; /* orange-100 */
+}
+
+.play-vs-computer-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-color);
+    background-color: #eef2ff; /* indigo-50 */
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.play-vs-computer-status svg {
+    width: 18px;
+    height: 18px;
+    color: var(--primary-color);
+    flex-shrink: 0;
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.play-vs-computer-status.thinking {
+    background-color: #fefce8; /* yellow-50 */
+    color: #a16207; /* yellow-700 */
+    border: 1px solid #fef08a;
+}
+
+.play-vs-computer-status.thinking svg {
+    color: #f59e0b; /* amber-500 */
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }

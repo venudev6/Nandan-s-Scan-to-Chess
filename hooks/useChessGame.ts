@@ -47,7 +47,6 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
     
     const gameStatus = useMemo(() => {
         if (isCheckmate) {
-            soundManager.play('CHECKMATE');
             return `Checkmate! ${turn === 'w' ? 'Black' : 'White'} wins.`;
         }
         if (isDraw) return 'Draw';
@@ -55,6 +54,13 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
         return '';
     }, [isGameOver, isCheckmate, isDraw, turn]);
 
+    // FIX: Play checkmate sound as a side effect in useEffect, not in useMemo.
+    useEffect(() => {
+        if (isCheckmate) {
+            soundManager.play('CHECKMATE');
+        }
+    }, [isCheckmate]);
+    
     // Function to update all React state from the chess.js instance
     const updateGameState = useCallback((gameInstance: Chess) => {
         setFen(gameInstance.fen());
@@ -62,9 +68,20 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
     }, []);
     
     // Function to make a move and update state
-    const makeMove = useCallback((move: { from: ChessJSSquare, to: ChessJSSquare, promotion?: ChessJSPieceSymbol }): Move | null => {
+    const makeMove = useCallback((move: string | { from: ChessJSSquare, to: ChessJSSquare, promotion?: ChessJSPieceSymbol }): Move | null => {
         const game = gameRef.current;
-        const result = game.move(move);
+        let result: Move | null = null;
+        
+        try {
+            result = game.move(move);
+        } catch (e) {
+            // Safely catch errors from chess.js (e.g., illegal moves) to prevent app crashes.
+            if (e instanceof Error) {
+                console.error(`Invalid move attempted:`, move, `Error: ${e.message}`);
+                return null;
+            }
+            throw e; // Re-throw other unexpected errors.
+        }
 
         if (result) {
             soundManager.play(result.captured ? 'CAPTURE' : 'MOVE');
@@ -74,7 +91,6 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
                 from: result.from,
                 to: result.to,
                 color: result.color as PieceColor,
-                // FIX: Store promotion piece and remove unnecessary type cast.
                 captured: result.captured,
                 promotion: result.promotion,
             };
@@ -95,39 +111,27 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
     }, [history, historyIndex, updateGameState]);
 
     const makeRawMove = useCallback((move: string | Move) => {
-        const game = gameRef.current;
-        // Need to reset any pending user interactions
-        setSelectedSquare(null);
-        setPossibleMoves([]);
-        setPromotionMove(null);
+        // This is a more flexible version of makeMove, which is why it's separate.
+        // It accepts UCI strings from the engine and handles auto-promotion.
+        let moveAttempt: string | Move = move;
 
-        const result = game.move(move);
+        // FIX: Handle incomplete promotion UCI strings from the engine.
+        // If the move is a 4-char string (e.g., 'h7h8') and it's a pawn moving to the last rank,
+        // chess.js requires a promotion piece. We default to 'q' (Queen).
+        if (typeof move === 'string' && move.length === 4) {
+            const from = move.substring(0, 2) as ChessJSSquare;
+            const to = move.substring(2, 4) as ChessJSSquare;
+            const piece = gameRef.current.get(from);
 
-        if (result) {
-            soundManager.play(result.captured ? 'CAPTURE' : 'MOVE');
-            const newHistoryEntry: HistoryEntry = {
-                fen: game.fen(),
-                san: result.san,
-                from: result.from,
-                to: result.to,
-                color: result.color as PieceColor,
-                // FIX: Store promotion piece and remove unnecessary type cast.
-                captured: result.captured,
-                promotion: result.promotion,
-            };
-            
-            // Take history up to current point and add the new move
-            const newHistory = [...history.slice(0, historyIndex + 1), newHistoryEntry];
-            
-            setHistory(newHistory);
-            setHistoryIndex(newHistory.length - 1);
-            updateGameState(game);
-        } else {
-            console.error("Invalid raw move from engine:", move);
+            if (piece && piece.type === 'p' && (to[1] === '8' || to[1] === '1')) {
+                moveAttempt = move + 'q'; // Default promotion to Queen
+            }
         }
+        
+        // Use the main `makeMove` function to execute and handle errors.
+        return makeMove(moveAttempt);
 
-        return result;
-    }, [history, historyIndex, updateGameState]);
+    }, [makeMove]);
     
     // Effect to initialize the game state from FEN or history
     useEffect(() => {
@@ -192,7 +196,9 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
                     setPromotionMove({ from: move.from, to: move.to });
                     return null;
                 } else {
-                   return makeMove({ from: move.from, to: move.to });
+                   // By passing the full move object from chess.js, we ensure that special
+                   // moves like en-passant are handled robustly.
+                   return makeMove(move);
                 }
             } else {
                 const piece = gameRef.current.get(square);
@@ -200,7 +206,6 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
                     setSelectedSquare(square);
                     const newMoves = gameRef.current.moves({ square, verbose: true });
                     setPossibleMoves(newMoves.map(m => m.to));
-                    soundManager.play('MOVE');
                 } else {
                     setSelectedSquare(null);
                     setPossibleMoves([]);
@@ -212,7 +217,6 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
                 setSelectedSquare(square);
                 const moves = gameRef.current.moves({ square, verbose: true });
                 setPossibleMoves(moves.map(m => m.to));
-                soundManager.play('MOVE');
             }
         }
         return null;
@@ -231,7 +235,16 @@ export const useChessGame = (initialFen: string, initialHistory?: HistoryEntry[]
         const newIndex = Math.max(-1, Math.min(index, history.length - 1));
         const game = new Chess(initialFen);
         for (let i = 0; i <= newIndex; i++) {
-            game.move(history[i].san!);
+            // Use try-catch here as well for robustness if history contains invalid moves
+            try {
+                if (history[i].san) {
+                    game.move(history[i].san!);
+                }
+            } catch (e) {
+                console.error(`Error replaying history move ${i+1} (${history[i].san}):`, e);
+                // Stop replaying if a move is invalid
+                break;
+            }
         }
         gameRef.current = game;
         updateGameState(game);

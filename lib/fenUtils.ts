@@ -35,12 +35,15 @@ export const boardStateToFen = (board: BoardState, turn: PieceColor): string => 
       fen += '/';
     }
   }
+  // This part of the FEN is often incomplete from manual setup. 
+  // We'll let `completeFen` handle the castling/move counters intelligently.
   fen += ` ${turn} - - 0 1`;
   return fen;
 };
 
 /**
  * Ensures a FEN string has all 6 required parts, adding default values if they are missing.
+ * It also intelligently infers castling rights if they are not provided.
  * @param fen The potentially incomplete FEN string.
  * @param turn The default turn color if not specified in the FEN.
  * @returns A complete, 6-part FEN string.
@@ -50,7 +53,29 @@ export const completeFen = (fen: string, turn: PieceColor = 'w'): string => {
     if (parts.length >= 6) return fen;
     const pieceData = parts[0] || '';
     const activeTurn = (parts[1] === 'w' || parts[1] === 'b') ? parts[1] : turn;
-    const castling = parts[2] || '-';
+    
+    let castling = parts[2] || '-';
+    // If castling rights are not specified, try to infer them from piece positions.
+    // This assumes that if the king/rooks are in their starting positions, they haven't moved.
+    if (castling === '-') {
+        let newCastling = '';
+        try {
+            const tempBoard = new Chess(pieceData + ' w - - 0 1'); // Load just the pieces
+            if (tempBoard.get('e1')?.type === 'k' && tempBoard.get('e1')?.color === 'w') {
+                if (tempBoard.get('h1')?.type === 'r' && tempBoard.get('h1')?.color === 'w') newCastling += 'K';
+                if (tempBoard.get('a1')?.type === 'r' && tempBoard.get('a1')?.color === 'w') newCastling += 'Q';
+            }
+            if (tempBoard.get('e8')?.type === 'k' && tempBoard.get('e8')?.color === 'b') {
+                if (tempBoard.get('h8')?.type === 'r' && tempBoard.get('h8')?.color === 'b') newCastling += 'k';
+                if (tempBoard.get('a8')?.type === 'r' && tempBoard.get('a8')?.color === 'b') newCastling += 'q';
+            }
+            castling = newCastling || '-';
+        } catch(e) {
+            console.warn("Could not parse board state to determine castling rights, defaulting to '-'.", e);
+            castling = '-';
+        }
+    }
+
     const enpassant = parts[3] || '-';
     const halfmove = parts[4] || '0';
     const fullmove = parts[5] || '1';
